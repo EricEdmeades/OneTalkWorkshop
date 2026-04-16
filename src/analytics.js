@@ -84,6 +84,30 @@ function wireCtaClicks() {
   });
 }
 
+function wireLeadMagnetForm() {
+  // Stub: form submission is not wired to an email provider yet. On submit we
+  // fire an analytics event, swap the form for a confirmation card, and return.
+  // TODO: wire to Mailchimp / ConvertKit / SendGrid / your provider of choice.
+  const form = document.querySelector('[data-form="lead-magnet"]');
+  if (!form) return;
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const emailField = form.querySelector('input[type="email"]');
+    const email = emailField ? emailField.value.trim() : '';
+    if (!email) return;
+    if (typeof window.gtag === 'function') {
+      window.gtag('event', 'lead_magnet_submit', { lead_magnet: 'stage_fright' });
+    }
+    if (typeof window.fbq === 'function') {
+      window.fbq('track', 'Lead', { content_name: 'stage_fright' });
+    }
+    const confirm = document.createElement('div');
+    confirm.className = 'lead-confirm';
+    confirm.innerHTML = '<strong>Thanks — check your inbox.</strong>We just sent the 5 Steps to Overcoming Stage Fright to your email.';
+    form.replaceWith(confirm);
+  });
+}
+
 // -----------------------------------------------------------------------------
 // Public entrypoint
 // -----------------------------------------------------------------------------
@@ -91,4 +115,5 @@ export function initAnalytics() {
   if (GA_ID) loadGA4(GA_ID);
   if (META_PIXEL_ID) loadMetaPixel(META_PIXEL_ID);
   wireCtaClicks();
+  wireLeadMagnetForm();
 }
