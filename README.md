@@ -118,7 +118,7 @@ vercel --prod   # promotes to production
 | GA4 tracking | ✅ Code in place, gated on `VITE_GA_MEASUREMENT_ID` |
 | Meta Pixel | ✅ Code in place, gated on `VITE_META_PIXEL_ID` |
 | CTA click tracking | ✅ Fires `cta_click` with section label (nav, hero, offer, final_cta) |
-| Checkout CTAs | ⏳ Currently in-page scroll anchors; real checkout URL to be wired post-publish |
+| Checkout CTAs | ✅ All four Reserve-My-Seat buttons → `speakernation.com/flow/one-talk-workshop-may-2026/otw-may-2026-checkout/` |
 
 ---
 
@@ -127,6 +127,5 @@ vercel --prod   # promotes to production
 - [ ] Produce real `og-share.png` (1200×630) and place at `public/assets/og-share.png`
 - [ ] Set `VITE_GA_MEASUREMENT_ID` in Vercel (production + preview)
 - [ ] Confirm/set `VITE_META_PIXEL_ID` in Vercel
-- [ ] Wire all `Reserve My Seat` CTAs to the real checkout URL
 - [ ] Add `onetalk.ericedmeades.com` as a custom domain in Vercel + CNAME at Cloudflare
 - [ ] Run `npm run preview` locally and click through the page one final time
