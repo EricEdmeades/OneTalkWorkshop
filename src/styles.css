@@ -1,5 +1,5 @@
   :root {
-    /* SpeakerNation brand palette — editorial, high-contrast */
+    /* SpeakerNation brand palette — orange + black, per speakernation.com */
     --black: #111111;
     --black-soft: #222222;
     --charcoal: #3A3A3A;
@@ -8,10 +8,10 @@
     --paper: #F7F5F2;        /* warm off-white, site background */
     --paper-2: #EDEAE4;
     --white: #FFFFFF;
-    --wine: #8B1E28;          /* signature maroon/wine accent */
-    --wine-deep: #6B1720;
-    --wine-bright: #B52738;
-    --gold: #C8A65C;          /* subtle warm accent for premium moments */
+    --wine: #E26320;          /* SN primary orange (variable kept as --wine for CSS stability) */
+    --wine-deep: #B94F17;     /* deeper burnt-orange variant */
+    --wine-bright: #F2672F;   /* brighter SN orange for accents */
+    --gold: #F7A32B;          /* SN warm amber accent */
     --line: rgba(17,17,17,0.12);
     --shadow-lg: 0 30px 80px -20px rgba(17,17,17,0.4);
     --shadow-md: 0 14px 40px -12px rgba(17,17,17,0.22);
@@ -65,7 +65,7 @@
     letter-spacing: 0.05em;
     font-weight: 500;
   }
-  .announce strong { color: #E5C97A; font-weight: 700; }
+  .announce strong { color: #F7A32B; font-weight: 700; }
 
   /* ================= NAV ================= */
   nav.topnav {
@@ -258,7 +258,7 @@
     position: absolute; inset: 0;
     background:
       linear-gradient(180deg, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.6) 100%),
-      radial-gradient(ellipse at 30% 20%, rgba(200,166,92,0.2) 0%, transparent 60%);
+      radial-gradient(ellipse at 30% 20%, rgba(247,163,43,0.2) 0%, transparent 60%);
     z-index: 2;
   }
   .hero-image-frame > img {
@@ -347,7 +347,7 @@
     line-height: 1;
     letter-spacing: -0.02em;
   }
-  .trust-stat .num .hl { color: #E5C97A; }
+  .trust-stat .num .hl { color: #F7A32B; }
   .trust-stat .lbl {
     font-size: 0.72rem;
     opacity: 0.7;
@@ -429,7 +429,7 @@
     font-weight: 400;
   }
   .villain-kicker strong {
-    color: #E5C97A;
+    color: #F7A32B;
     font-style: normal;
     font-family: var(--f-sans);
     font-weight: 700;
@@ -450,7 +450,7 @@
     position: absolute;
     top: -300px; right: -300px;
     width: 700px; height: 700px;
-    background: radial-gradient(circle, rgba(139,30,40,0.4) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(226,99,32,0.4) 0%, transparent 70%);
     pointer-events: none;
   }
   .bigidea::after {
@@ -458,11 +458,11 @@
     position: absolute;
     bottom: -300px; left: -300px;
     width: 700px; height: 700px;
-    background: radial-gradient(circle, rgba(200,166,92,0.15) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(247,163,43,0.15) 0%, transparent 70%);
     pointer-events: none;
   }
   .bigidea-inner { position: relative; text-align: center; }
-  .bigidea .eyebrow { color: #E5C97A; }
+  .bigidea .eyebrow { color: #F7A32B; }
   .bigidea h2 {
     font-size: clamp(2.4rem, 5vw, 4.4rem);
     margin-bottom: 38px;
@@ -474,7 +474,7 @@
   .bigidea h2 em {
     font-family: var(--f-serif);
     font-style: italic;
-    color: #E5C97A;
+    color: #F7A32B;
     font-weight: 500;
   }
   .bigidea h2 .mark {
@@ -490,7 +490,7 @@
     line-height: 1.65;
     font-weight: 400;
   }
-  .bigidea .lead em { font-family: var(--f-serif); font-style: italic; color: #E5C97A; font-weight: 500; }
+  .bigidea .lead em { font-family: var(--f-serif); font-style: italic; color: #F7A32B; font-weight: 500; }
 
   .mechanism-card {
     background: var(--paper);
@@ -623,7 +623,7 @@
     font-weight: 400;
   }
   .future-closer strong {
-    color: #E5C97A;
+    color: #F7A32B;
     font-style: normal;
     font-family: var(--f-sans);
     font-weight: 700;
@@ -792,7 +792,7 @@
   .tool-icon {
     width: 58px; height: 58px;
     background: var(--black);
-    color: #E5C97A;
+    color: #F7A32B;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -858,7 +858,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    color: #E5C97A;
+    color: #F7A32B;
     font-family: var(--f-sans);
     font-size: 0.95rem;
     font-weight: 700;
@@ -920,7 +920,7 @@
     border-bottom: 1px solid rgba(247,245,242,0.08);
   }
   .include-check {
-    color: #E5C97A;
+    color: #F7A32B;
     flex-shrink: 0;
     margin-top: 2px;
     font-weight: 900;
@@ -931,7 +931,7 @@
     font-family: var(--f-serif);
     font-style: italic;
     font-weight: 500;
-    color: #E5C97A;
+    color: #F7A32B;
     opacity: 0.8;
     white-space: nowrap;
     font-size: 0.9rem;
@@ -968,7 +968,7 @@
   }
   .price-now .dollar { font-size: 0.55em; vertical-align: top; opacity: 0.7; margin-right: 4px; font-weight: 500; }
   .price-detail { font-size: 0.95rem; opacity: 0.75; margin-top: 14px; letter-spacing: 0.02em; }
-  .price-detail strong { color: #E5C97A; font-weight: 700; }
+  .price-detail strong { color: #F7A32B; font-weight: 700; }
 
   .btn-hero {
     background: var(--wine);
@@ -977,7 +977,7 @@
     font-size: 1rem;
     margin-top: 10px;
   }
-  .btn-hero:hover { background: #E5C97A; color: var(--black); }
+  .btn-hero:hover { background: #F7A32B; color: var(--black); }
 
   .offer-assure {
     display: flex;
@@ -1007,7 +1007,7 @@
   .guarantee-seal {
     aspect-ratio: 1;
     background: var(--black);
-    color: #E5C97A;
+    color: #F7A32B;
     border-radius: 50%;
     display: flex;
     align-items: center;
@@ -1020,7 +1020,7 @@
     content: "";
     position: absolute;
     inset: 10px;
-    border: 1.5px dashed #E5C97A;
+    border: 1.5px dashed #F7A32B;
     border-radius: 50%;
     opacity: 0.6;
   }
@@ -1120,7 +1120,7 @@
   .lead-form input[type="email"]:focus {
     outline: none;
     border-color: var(--wine);
-    box-shadow: 0 0 0 3px rgba(139,30,40,0.15);
+    box-shadow: 0 0 0 3px rgba(226,99,32,0.15);
   }
   .lead-form button {
     cursor: pointer;
@@ -1170,7 +1170,7 @@
     position: absolute;
     top: -400px; left: 50%; transform: translateX(-50%);
     width: 1000px; height: 1000px;
-    background: radial-gradient(circle, rgba(139,30,40,0.3) 0%, transparent 55%);
+    background: radial-gradient(circle, rgba(226,99,32,0.3) 0%, transparent 55%);
     pointer-events: none;
   }
   .final-cta-inner { position: relative; }
@@ -1183,7 +1183,7 @@
     letter-spacing: -0.025em;
   }
   .final-cta h2 em {
-    color: #E5C97A;
+    color: #F7A32B;
     font-family: var(--f-serif);
     font-style: italic;
     font-weight: 500;
@@ -1212,7 +1212,7 @@
   }
   .seat-count .live-dot {
     width: 8px; height: 8px;
-    background: #E5C97A;
+    background: #F7A32B;
     border-radius: 50%;
     animation: pulse 2s infinite;
   }
@@ -1250,6 +1250,13 @@
   }
   .disclaimer strong { font-weight: 700; }
 
+  /* ================= EMPHASIS HOVER ================= */
+  /* Bold text lights up in brand orange on hover — subtle delight moment.
+     !important is intentional: several strongs have class-based colors
+     (e.g. .micro-assure strong) whose specificity would otherwise win. */
+  strong { transition: color 0.2s ease; }
+  strong:hover { color: var(--wine) !important; }
+
   /* ================= FOCUS STATES (a11y) ================= */
   :focus { outline: none; }
   a:focus-visible,
@@ -1262,7 +1269,7 @@
   }
   .btn-primary:focus-visible,
   .nav-cta:focus-visible {
-    outline-color: #E5C97A;
+    outline-color: #F7A32B;
   }
 
   /* ================= RESPONSIVE ================= */
