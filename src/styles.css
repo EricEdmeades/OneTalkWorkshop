@@ -1251,11 +1251,20 @@
   .disclaimer strong { font-weight: 700; }
 
   /* ================= EMPHASIS HOVER ================= */
-  /* Bold text lights up in brand orange on hover — subtle delight moment.
-     !important is intentional: several strongs have class-based colors
-     (e.g. .micro-assure strong) whose specificity would otherwise win. */
-  strong { transition: color 0.2s ease; }
-  strong:hover { color: var(--wine) !important; }
+  /* Word-by-word hover on headlines: each word in h1–h4 lights up in brand
+     orange individually. Words are wrapped in span.word at DOM-ready by
+     word-hover.js. Existing inline accents (<em>, .accent, .under, .mark)
+     inside headings get the same treatment as whole single-element units.
+     <strong> inline emphasis anywhere on the page hovers as a whole unit.
+     !important beats class-scoped color rules. */
+  :is(h1, h2, h3, h4) :is(.word, .accent, .under, .mark, em),
+  strong {
+    transition: color 0.2s ease;
+  }
+  :is(h1, h2, h3, h4) :is(.word, .accent, .under, .mark, em):hover,
+  strong:hover {
+    color: var(--wine) !important;
+  }
 
   /* ================= FOCUS STATES (a11y) ================= */
   :focus { outline: none; }
