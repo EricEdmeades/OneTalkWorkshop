@@ -1297,4 +1297,65 @@
     .trust-stat .num { font-size: 1.7rem; }
     .villain-item { grid-template-columns: 1fr; gap: 8px; }
     .villain-kicker { padding: 28px 24px; font-size: 1.2rem; }
+    /* Decorative watermark SVG in hero risks overflow on narrow screens — hide. */
+    .hero::before { display: none; }
+    /* Include-items in offer: drop the per-item value under the label on narrow screens instead of squishing it. */
+    .include-item span { flex-wrap: wrap; }
+    .include-item .val { flex-basis: 100%; padding-left: 0; opacity: 0.6; }
+    /* Nav reserve-seat button needs a 44px touch target (iOS HIG floor). */
+    .nav-cta { min-height: 44px; display: inline-flex; align-items: center; }
+  }
+
+  /* ================= PHONE (<= 600px) ================= */
+  @media (max-width: 600px) {
+    .wrap, .wrap-narrow { padding: 0 20px; }
+    .sect-pad, .bigidea, .final-cta { padding: 64px 0; }
+    .hero { padding: 28px 0 56px; }
+    /* Tighter hero headline floor so it doesn't overflow 320px viewports. */
+    h1 { font-size: clamp(2rem, 9vw, 2.8rem); }
+    .hero-sub { font-size: 1.05rem; margin-bottom: 32px; }
+    .hero-flag { font-size: 0.66rem; letter-spacing: 0.16em; }
+    .hero-meta { gap: 16px; padding-top: 20px; margin-top: 28px; }
+    .hero-meta-item { font-size: 0.82rem; }
+    /* Trust bar: stack label above stats, tighter numbers. */
+    .trust { padding: 32px 0; }
+    .trust-inner { flex-direction: column; align-items: flex-start; gap: 20px; }
+    .trust-stats { gap: 22px 32px; }
+    .trust-stat .num { font-size: 1.5rem; }
+    .trust-stat .lbl { font-size: 0.68rem; }
+    /* Offer: reduce price-frame side padding, reduce the huge price number. */
+    .price-frame { padding: 40px 20px; }
+    .price-now { font-size: clamp(3rem, 13vw, 4rem); }
+    .includes { gap: 10px 0; }
+    /* Mechanism card + future-closer: tighter padding. */
+    .mechanism-card { padding: 32px 22px; }
+    .future-closer { padding: 40px 28px; }
+    .future-closer p { font-size: 1.25rem; }
+    /* FAQ: reduce the right-padding gap for the + icon so the summary has more room. */
+    .faq-item summary { font-size: 1.05rem; padding-right: 36px; }
+    .faq-item summary::after { font-size: 1.6rem; }
+    /* Lead magnet form: stack input and button vertically. */
+    .lead-form { flex-direction: column; }
+    .lead-form input[type="email"] { width: 100%; min-width: 0; }
+    .lead-form button { width: 100%; justify-content: center; }
+    /* Final CTA headline can run a little smaller. */
+    .final-cta h2 { font-size: clamp(2rem, 8vw, 2.8rem); }
+    .final-cta .lead { font-size: 1.05rem; }
+    /* Day cards: slightly tighter headers + bodies. */
+    .day-header { padding: 28px 26px 22px; }
+    .day-title { font-size: 1.6rem; }
+    .day-body { padding: 26px; }
+    /* Footer: stack nicely. */
+    .foot-inner { flex-direction: column; align-items: flex-start; gap: 18px; }
+    .foot-links { flex-wrap: wrap; gap: 16px 20px; }
+  }
+
+  /* ================= REDUCED MOTION (a11y) ================= */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
   }
