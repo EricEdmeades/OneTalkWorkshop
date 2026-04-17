@@ -1311,6 +1311,14 @@
     }
     .announce-full { display: none; }
     .announce-short { display: inline; }
+    /* Nav button fits within viewport on phones — tighter padding + letter-spacing */
+    nav.topnav .nav-cta {
+      padding: 10px 14px;
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+    }
+    .nav-inner { padding: 0 16px; }
+    .nav-logo img { height: 40px; }
     .wrap, .wrap-narrow { padding: 0 20px; }
     .sect-pad, .bigidea, .final-cta { padding: 64px 0; }
     .hero { padding: 28px 0 56px; }
