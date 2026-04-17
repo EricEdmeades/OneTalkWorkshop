@@ -269,28 +269,6 @@
     object-fit: cover;
     z-index: 1;
   }
-  /* Tag across the bottom of the hero image */
-  .hero-image-tag {
-    position: absolute;
-    bottom: 28px; left: 28px; right: 28px;
-    z-index: 3;
-    color: var(--paper);
-  }
-  .hero-image-tag .small {
-    font-size: 0.7rem;
-    letter-spacing: 0.25em;
-    text-transform: uppercase;
-    font-weight: 700;
-    opacity: 0.8;
-    margin-bottom: 6px;
-  }
-  .hero-image-tag .big {
-    font-family: var(--f-serif);
-    font-style: italic;
-    font-size: 1.3rem;
-    line-height: 1.2;
-  }
-
   .hero-quote-card {
     position: absolute;
     bottom: 24px;
@@ -298,7 +276,7 @@
     right: 24px;
     background: var(--paper);
     padding: 22px 24px;
-    max-width: 300px;
+    max-width: 380px;
     box-shadow: var(--shadow-lg);
     border-left: 3px solid var(--wine);
     z-index: 4;
