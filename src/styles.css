@@ -100,6 +100,7 @@
     transition: all 0.2s;
   }
   .nav-cta:hover { background: var(--wine); }
+  .nav-cta-short { display: none; }
 
   /* ================= HERO ================= */
   .hero {
@@ -1313,10 +1314,12 @@
     .announce-short { display: inline; }
     /* Nav button fits within viewport on phones — tighter padding + letter-spacing */
     nav.topnav .nav-cta {
-      padding: 10px 14px;
-      font-size: 0.72rem;
+      padding: 10px 16px;
+      font-size: 0.74rem;
       letter-spacing: 0.08em;
     }
+    .nav-cta-full { display: none; }
+    .nav-cta-short { display: inline; }
     .nav-inner { padding: 0 16px; }
     .nav-logo img { height: 40px; }
     .wrap, .wrap-narrow { padding: 0 20px; }
