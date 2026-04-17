@@ -787,8 +787,6 @@
     display: flex;
     gap: 16px;
     overflow-x: auto;
-    scroll-snap-type: x proximity;
-    scroll-behavior: smooth;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
     padding: 4px 0 24px;
@@ -798,7 +796,6 @@
     position: relative;
     flex: 0 0 calc((100% - 32px) / 3);
     aspect-ratio: 1 / 1;
-    scroll-snap-align: start;
     overflow: hidden;
     cursor: pointer;
     background: var(--black);
