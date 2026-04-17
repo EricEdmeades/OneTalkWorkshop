@@ -887,32 +887,31 @@
   }
   .include-item {
     display: flex;
-    gap: 18px;
-    align-items: start;
+    gap: 12px;
+    align-items: baseline;
     justify-content: center;
-    padding: 18px 0;
+    padding: 16px 0;
     border-bottom: 1px solid rgba(247,245,242,0.08);
+    font-size: 0.98rem;
+    opacity: 0.92;
+    line-height: 1.4;
   }
-  .include-item > span:last-child { flex: 0 1 440px; max-width: 440px; min-width: 0; }
   .include-item:last-child { border-bottom: none; }
   .include-check {
     color: #F7A32B;
     flex-shrink: 0;
-    margin-top: 1px;
     font-weight: 900;
     font-size: 1.15rem;
-    width: 22px;
-    line-height: 1.4;
   }
-  .include-item span { font-size: 0.98rem; opacity: 0.92; line-height: 1.4; display: flex; justify-content: space-between; gap: 12px; flex: 1; }
   .include-item .val {
     font-family: var(--f-serif);
     font-style: italic;
     font-weight: 500;
     color: #F7A32B;
-    opacity: 0.8;
+    opacity: 0.85;
     white-space: nowrap;
     font-size: 0.9rem;
+    margin-left: 8px;
   }
   .price-label {
     font-size: 0.72rem;
@@ -1300,8 +1299,8 @@
     /* Decorative watermark SVG in hero risks overflow on narrow screens — hide. */
     .hero::before { display: none; }
     /* Include-items in offer: drop the per-item value under the label on narrow screens instead of squishing it. */
-    .include-item span { flex-wrap: wrap; }
-    .include-item .val { flex-basis: 100%; padding-left: 0; opacity: 0.6; }
+    .include-item { flex-wrap: wrap; gap: 6px 10px; padding: 14px 6px; }
+    .include-item .val { margin-left: 0; opacity: 0.6; }
     /* Nav reserve-seat button needs a 44px touch target (iOS HIG floor). */
     .nav-cta { min-height: 44px; display: inline-flex; align-items: center; }
   }
