@@ -160,7 +160,7 @@
   .hero h1 .accent {
     font-family: var(--f-serif);
     font-style: italic;
-    font-weight: 500;
+    font-weight: 700;
     color: var(--wine);
     letter-spacing: -0.01em;
   }
@@ -169,7 +169,8 @@
     display: inline-block;
     font-family: var(--f-serif);
     font-style: italic;
-    font-weight: 500;
+    font-weight: 700;
+    color: var(--wine);
     letter-spacing: -0.01em;
   }
   .hero h1 .under::after {
@@ -292,10 +293,11 @@
 
   .hero-quote-card {
     position: absolute;
-    bottom: -40px;
-    left: -50px;
+    bottom: 24px;
+    left: 24px;
+    right: 24px;
     background: var(--paper);
-    padding: 24px 28px;
+    padding: 22px 24px;
     max-width: 300px;
     box-shadow: var(--shadow-lg);
     border-left: 3px solid var(--wine);
@@ -379,10 +381,10 @@
     content: "";
     position: absolute;
     left: -4px; right: -4px;
-    top: 52%;
+    top: 50%;
     height: 4px;
     background: var(--wine);
-    transform: rotate(-1.5deg);
+    transform: translateY(-50%);
   }
   .villain-copy p {
     font-size: 1.08rem;
@@ -906,25 +908,28 @@
 
   .includes {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: 14px 44px;
+    grid-template-columns: 1fr;
+    gap: 0;
     text-align: left;
-    max-width: 740px;
+    max-width: 560px;
     margin: 0 auto 50px;
   }
   .include-item {
     display: flex;
-    gap: 14px;
+    gap: 18px;
     align-items: start;
-    padding: 14px 0;
+    padding: 18px 0;
     border-bottom: 1px solid rgba(247,245,242,0.08);
   }
+  .include-item:last-child { border-bottom: none; }
   .include-check {
     color: #F7A32B;
     flex-shrink: 0;
-    margin-top: 2px;
+    margin-top: 1px;
     font-weight: 900;
-    font-size: 1rem;
+    font-size: 1.15rem;
+    width: 22px;
+    line-height: 1.4;
   }
   .include-item span { font-size: 0.98rem; opacity: 0.92; line-height: 1.4; display: flex; justify-content: space-between; gap: 12px; flex: 1; }
   .include-item .val {
@@ -1099,15 +1104,20 @@
   }
   .lead-form {
     display: flex;
+    flex-direction: column;
     gap: 12px;
     max-width: 620px;
     margin: 0 auto;
-    flex-wrap: wrap;
-    align-items: stretch;
   }
+  .lead-row {
+    display: flex;
+    gap: 12px;
+  }
+  .lead-field { flex: 1; min-width: 0; }
+  .lead-field-full { width: 100%; }
+  .lead-form input[type="text"],
   .lead-form input[type="email"] {
-    flex: 1;
-    min-width: 240px;
+    width: 100%;
     padding: 18px 20px;
     font-size: 1rem;
     font-family: var(--f-sans);
@@ -1117,16 +1127,33 @@
     color: var(--black);
     transition: border-color 0.2s, box-shadow 0.2s;
   }
+  .lead-form input[type="text"]:focus,
   .lead-form input[type="email"]:focus {
     outline: none;
     border-color: var(--wine);
     box-shadow: 0 0 0 3px rgba(226,99,32,0.15);
   }
-  .lead-form button {
+  .lead-form input[aria-invalid="true"] {
+    border-color: var(--wine);
+  }
+  .lead-form .lead-submit {
     cursor: pointer;
     border: none;
-    white-space: nowrap;
+    align-self: center;
+    margin-top: 8px;
   }
+  .lead-form .lead-submit[disabled] {
+    opacity: 0.5;
+    cursor: wait;
+  }
+  .lead-error {
+    color: var(--wine);
+    font-size: 0.88rem;
+    text-align: center;
+    margin: 4px 0 0;
+    min-height: 1.2em;
+  }
+  .lead-error:empty { display: none; }
   .lead-micro {
     margin-top: 22px;
     text-align: center;
@@ -1335,9 +1362,8 @@
     .faq-item summary { font-size: 1.05rem; padding-right: 36px; }
     .faq-item summary::after { font-size: 1.6rem; }
     /* Lead magnet form: stack input and button vertically. */
-    .lead-form { flex-direction: column; }
-    .lead-form input[type="email"] { width: 100%; min-width: 0; }
-    .lead-form button { width: 100%; justify-content: center; }
+    .lead-row { flex-direction: column; gap: 12px; }
+    .lead-form .lead-submit { width: 100%; justify-content: center; }
     /* Final CTA headline can run a little smaller. */
     .final-cta h2 { font-size: clamp(2rem, 8vw, 2.8rem); }
     .final-cta .lead { font-size: 1.05rem; }

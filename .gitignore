@@ -28,3 +28,6 @@ dist-ssr
 *.sln
 *.sw?
 .vercel
+
+# gstack skill outputs (qa reports, etc.) — local-only
+.gstack/
