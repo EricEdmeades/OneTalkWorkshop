@@ -66,6 +66,7 @@
     font-weight: 500;
   }
   .announce strong { color: #F7A32B; font-weight: 700; }
+  .announce-short { display: none; }
 
   /* ================= NAV ================= */
   nav.topnav {
@@ -1304,14 +1305,12 @@
       width: 100vw;
       max-width: 100vw;
       box-sizing: border-box;
-      font-size: 0.68rem;
-      letter-spacing: 0;
-      padding: 9px 12px;
-      line-height: 1.45;
-      white-space: normal;
-      word-break: normal;
-      overflow-wrap: break-word;
+      font-size: 0.78rem;
+      padding: 10px 14px;
+      line-height: 1.3;
     }
+    .announce-full { display: none; }
+    .announce-short { display: inline; }
     .wrap, .wrap-narrow { padding: 0 20px; }
     .sect-pad, .bigidea, .final-cta { padding: 64px 0; }
     .hero { padding: 28px 0 56px; }
