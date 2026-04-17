@@ -476,15 +476,6 @@
     position: relative;
     border-top: 5px solid var(--wine);
   }
-  .mechanism-card .tm {
-    position: absolute;
-    top: 32px; right: 42px;
-    font-size: 0.68rem;
-    letter-spacing: 0.25em;
-    text-transform: uppercase;
-    color: var(--wine);
-    font-weight: 700;
-  }
   .mechanism-card h3 {
     font-size: clamp(2rem, 3.5vw, 2.8rem);
     margin-bottom: 22px;
@@ -1307,6 +1298,16 @@
 
   /* ================= PHONE (<= 600px) ================= */
   @media (max-width: 600px) {
+    /* Announce bar: prevent clipping when the nav forces body > viewport.
+       Force bar to real viewport width so text wraps within the visible area. */
+    .announce {
+      width: 100vw;
+      box-sizing: border-box;
+      font-size: 0.72rem;
+      letter-spacing: 0.02em;
+      padding: 9px 14px;
+      line-height: 1.4;
+    }
     .wrap, .wrap-narrow { padding: 0 20px; }
     .sect-pad, .bigidea, .final-cta { padding: 64px 0; }
     .hero { padding: 28px 0 56px; }
