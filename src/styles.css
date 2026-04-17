@@ -1320,7 +1320,7 @@
     }
     .nav-cta-full { display: none; }
     .nav-cta-short { display: inline; }
-    .nav-inner { padding: 0 16px; }
+    .nav-inner { width: 100vw; box-sizing: border-box; padding: 0 16px; }
     .nav-logo img { height: 40px; }
     .wrap, .wrap-narrow { padding: 0 20px; }
     .sect-pad, .bigidea, .final-cta { padding: 64px 0; }
