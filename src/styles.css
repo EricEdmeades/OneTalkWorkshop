@@ -879,6 +879,43 @@
   .testi-card:hover .testi-name,
   .testi-card.is-active .testi-name { opacity: 0; }
 
+  /* ================= STORIES PAGE ================= */
+  .stories-hero {
+    padding: 80px 0 56px;
+    background: var(--paper);
+    text-align: center;
+  }
+  .stories-hero .eyebrow { margin-bottom: 18px; }
+  .stories-hero h1 {
+    font-size: clamp(2.4rem, 5vw, 4rem);
+    margin-bottom: 18px;
+  }
+  .stories-hero .lead {
+    font-size: 1.15rem;
+    color: var(--charcoal);
+    max-width: 640px;
+    margin: 0 auto;
+    line-height: 1.55;
+  }
+  .stories-grid-section {
+    background: var(--paper);
+    padding: 32px 0 110px;
+  }
+  .stories-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+  }
+  @media (max-width: 1100px) {
+    .stories-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+  @media (max-width: 800px) {
+    .stories-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 520px) {
+    .stories-grid { grid-template-columns: 1fr; max-width: 420px; margin: 0 auto; }
+  }
+
   /* Carousel arrows (desktop only) */
   .testi-arrow {
     position: absolute;
