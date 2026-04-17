@@ -779,77 +779,133 @@
     font-weight: 500;
   }
 
-  .testimonial-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 24px;
+  /* Carousel of past-participant testimonials.
+     Cards are square photos; on hover (desktop) or tap (mobile) the
+     quote slides up over a wine-tinted overlay. */
+  .testi-carousel-wrap { position: relative; }
+  .testi-carousel {
+    display: flex;
+    gap: 16px;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    padding: 4px 0 24px;
   }
-  .tcard {
-    background: var(--white);
-    padding: 38px 34px;
+  .testi-carousel::-webkit-scrollbar { display: none; }
+  .testi-card {
     position: relative;
-    border-top: 3px solid var(--wine);
-    box-shadow: 0 2px 10px rgba(17,17,17,0.04);
-    transition: all 0.3s;
+    flex: 0 0 calc((100% - 32px) / 3);
+    aspect-ratio: 1 / 1;
+    scroll-snap-align: start;
+    overflow: hidden;
+    cursor: pointer;
+    background: var(--black);
+    box-shadow: 0 2px 10px rgba(17,17,17,0.08);
   }
-  .tcard:hover { transform: translateY(-4px); box-shadow: var(--shadow-md); }
-  .tcard .quote-mark {
+  .testi-card img {
+    position: absolute;
+    inset: 0;
+    width: 100%; height: 100%;
+    object-fit: cover;
+    display: block;
+    transition: transform 0.5s cubic-bezier(.2,.8,.2,1);
+  }
+  .testi-card:hover img,
+  .testi-card.is-active img { transform: scale(1.04); }
+  /* Always-visible name strip pinned bottom over a soft gradient. */
+  .testi-name {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    padding: 48px 18px 16px;
+    background: linear-gradient(180deg, transparent 0%, rgba(17,17,17,0.85) 70%);
+    color: var(--paper);
+    z-index: 2;
+    transition: opacity 0.3s ease;
+  }
+  .testi-name strong {
+    display: block;
+    font-weight: 700;
+    font-size: 0.95rem;
+    letter-spacing: -0.005em;
+  }
+  .testi-name span {
+    display: block;
+    font-size: 0.7rem;
+    opacity: 0.78;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-top: 4px;
+    font-weight: 600;
+  }
+  /* Quote overlay — wine tint over photo, slides up on hover/tap. */
+  .testi-quote {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(226,99,32,0.92) 0%, rgba(185,79,23,0.96) 100%);
+    color: var(--paper);
+    padding: 24px 22px;
+    display: flex;
+    align-items: center;
+    z-index: 3;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+    pointer-events: none;
+  }
+  .testi-quote p {
     font-family: var(--f-serif);
-    font-size: 4.5rem;
-    line-height: 0.5;
-    color: var(--wine);
-    opacity: 0.28;
-    margin-bottom: 14px;
+    font-style: italic;
+    font-weight: 500;
+    font-size: 0.98rem;
+    line-height: 1.45;
+    margin: 0;
+  }
+  .testi-quote::before {
+    content: '"';
+    position: absolute;
+    top: 4px; left: 14px;
+    font-family: var(--f-serif);
+    font-size: 3.5rem;
+    line-height: 1;
+    opacity: 0.32;
     font-style: italic;
   }
-  .tcard p {
-    font-size: 1rem;
-    line-height: 1.6;
-    color: var(--black-soft);
-    margin-bottom: 26px;
-    font-weight: 400;
+  .testi-card:hover .testi-quote,
+  .testi-card.is-active .testi-quote,
+  .testi-card:focus-visible .testi-quote {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
   }
-  .tcard-foot {
-    display: flex;
-    gap: 14px;
-    align-items: center;
-    padding-top: 22px;
-    border-top: 1px solid var(--line);
-  }
-  .tcard-avatar {
-    width: 48px; height: 48px;
+  .testi-card:hover .testi-name,
+  .testi-card.is-active .testi-name { opacity: 0; }
+
+  /* Carousel arrows (desktop only) */
+  .testi-arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 44px; height: 44px;
     border-radius: 50%;
-    background: var(--black);
-    flex-shrink: 0;
-    display: flex;
+    background: var(--paper);
+    color: var(--black);
+    border: 1px solid var(--line);
+    cursor: pointer;
+    font-size: 1.4rem;
+    line-height: 1;
+    display: none;
     align-items: center;
     justify-content: center;
-    color: #F7A32B;
-    font-family: var(--f-sans);
-    font-size: 0.95rem;
-    font-weight: 700;
-    letter-spacing: -0.01em;
+    z-index: 5;
+    box-shadow: var(--shadow-md);
+    transition: background 0.2s, color 0.2s, transform 0.2s;
   }
-  .tcard-name { font-weight: 700; font-size: 0.92rem; }
-  .tcard-meta {
-    font-size: 0.74rem;
-    color: var(--gray);
-    margin-top: 3px;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    font-weight: 500;
-  }
-  .tcard-result {
-    position: absolute;
-    top: 22px; right: 26px;
-    background: var(--wine);
-    color: var(--white);
-    font-size: 0.65rem;
-    padding: 5px 11px;
-    font-weight: 700;
-    letter-spacing: 0.12em;
-    text-transform: uppercase;
-  }
+  .testi-arrow:hover { background: var(--wine); color: var(--paper); transform: translateY(-50%) scale(1.06); }
+  .testi-arrow-prev { left: -22px; }
+  .testi-arrow-next { right: -22px; }
+  @media (min-width: 901px) { .testi-arrow { display: flex; } }
 
   /* ================= OFFER ================= */
   .offer { background: var(--paper); }
@@ -1277,7 +1333,8 @@
   @media (max-width: 900px) {
     .hero-grid, .villain-grid, .eric-grid { grid-template-columns: 1fr; gap: 60px; }
     .hero-quote-card { position: static; margin-top: 24px; max-width: none; }
-    .scenes, .days-grid, .testimonial-grid, .includes, .tools { grid-template-columns: 1fr; }
+    .scenes, .days-grid, .includes, .tools { grid-template-columns: 1fr; }
+    .testi-card { flex: 0 0 calc((100% - 16px) / 2); }
     .hero { padding: 40px 0 70px; }
     .sect-pad, .bigidea, .final-cta { padding: 80px 0; }
     .price-frame { padding: 50px 28px; }
@@ -1322,6 +1379,9 @@
     .nav-cta-short { display: inline; }
     .nav-inner { width: 100vw; box-sizing: border-box; padding: 0 16px; }
     .nav-logo img { height: 40px; }
+    /* Carousel: ~1.2 cards visible so users see there's more to scroll. */
+    .testi-card { flex: 0 0 78%; }
+    .testi-quote p { font-size: 0.92rem; }
     .wrap, .wrap-narrow { padding: 0 20px; }
     .sect-pad, .bigidea, .final-cta { padding: 64px 0; }
     .hero { padding: 28px 0 56px; }
