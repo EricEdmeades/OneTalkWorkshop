@@ -352,17 +352,10 @@
     align-items: start;
   }
   .villain h2 .strike {
-    position: relative;
-    display: inline-block;
-  }
-  .villain h2 .strike::after {
-    content: "";
-    position: absolute;
-    left: -4px; right: -4px;
-    top: 50%;
-    height: 4px;
-    background: var(--wine);
-    transform: translateY(-50%);
+    text-decoration: line-through;
+    text-decoration-color: var(--wine);
+    text-decoration-thickness: 4px;
+    text-decoration-skip-ink: none;
   }
   .villain-copy p {
     font-size: 1.08rem;
@@ -896,9 +889,11 @@
     display: flex;
     gap: 18px;
     align-items: start;
+    justify-content: center;
     padding: 18px 0;
     border-bottom: 1px solid rgba(247,245,242,0.08);
   }
+  .include-item > span:last-child { flex: 0 1 440px; max-width: 440px; min-width: 0; }
   .include-item:last-child { border-bottom: none; }
   .include-check {
     color: #F7A32B;
