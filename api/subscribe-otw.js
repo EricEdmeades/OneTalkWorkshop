@@ -78,6 +78,16 @@ async function updateContact(contactId, { firstName, lastName, email }) {
   }
 }
 
+// Keap returns HTTP 200 even when a tag ID is unknown, signaling per-tag
+// failure inside the response body (e.g. {"1831":"TAG_ID_NOT_FOUND"}).
+// A bare res.ok check is insufficient — we must inspect the body too.
+function isTagFailureValue(v) {
+  if (v == null) return false;
+  if (typeof v !== 'string') return false; // success metadata is an object
+  const upper = v.toUpperCase();
+  return upper.includes('ERROR') || upper.includes('NOT_FOUND');
+}
+
 async function applyTag(contactId, tagId) {
   const res = await fetch(`${KEAP_BASE_V1}/contacts/${contactId}/tags`, {
     method: 'POST',
@@ -86,7 +96,24 @@ async function applyTag(contactId, tagId) {
   });
   if (!res.ok) {
     const text = await res.text();
-    throw new Error(`Keap tag apply failed: ${res.status} ${text}`);
+    throw new Error(
+      `Keap tag apply HTTP ${res.status} for contact ${contactId} tag ${tagId}: ${text}`,
+    );
+  }
+
+  let body;
+  try {
+    body = await res.json();
+  } catch (_) {
+    body = {};
+  }
+
+  const failures = Object.entries(body).filter(([_, v]) => isTagFailureValue(v));
+  if (failures.length > 0) {
+    const failedIds = failures.map(([id]) => id).join(', ');
+    throw new Error(
+      `Keap tag apply rejected for contact ${contactId} tag(s) [${failedIds}]: ${JSON.stringify(body)}`,
+    );
   }
 }
 
@@ -139,7 +166,20 @@ export default async function handler(req, res) {
       contactId = await createContact({ firstName, lastName, email });
     }
 
-    await applyTag(contactId, TAG_ID);
+    try {
+      await applyTag(contactId, TAG_ID);
+    } catch (tagErr) {
+      const message = tagErr instanceof Error ? tagErr.message : String(tagErr);
+      // Contact has been created/updated but the tag did not apply, which
+      // means the email automation will not fire — surface as a hard failure.
+      console.error(
+        `[subscribe-otw] Tag apply failed (contact ${contactId} tag ${TAG_ID}): ${message}`,
+      );
+      return res.status(500).json({
+        success: false,
+        error: 'Registration partially failed. Please contact support.',
+      });
+    }
 
     const today = new Date().toISOString().slice(0, 10);
     await addNote(
