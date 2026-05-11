@@ -16,10 +16,15 @@ export function initLeadMagnetForm() {
   const firstInput = form.querySelector('input[name="firstName"]');
   const lastInput = form.querySelector('input[name="lastName"]');
   const emailInput = form.querySelector('input[name="email"]');
+  const websiteInput = form.querySelector('input[name="website"]');
+  const startedAtInput = form.querySelector('input[name="formStartedAt"]');
   const submitBtn = form.querySelector('button[type="submit"]');
   const errorEl = form.querySelector('.lead-error');
 
   if (!firstInput || !lastInput || !emailInput || !submitBtn) return;
+
+  // Stamp the form on render so the server can reject sub-3s submissions.
+  if (startedAtInput) startedAtInput.value = String(Date.now());
 
   // Clear aria-invalid state as the user types.
   [firstInput, lastInput, emailInput].forEach((input) => {
@@ -56,7 +61,13 @@ export function initLeadMagnetForm() {
       const res = await fetch(ENDPOINT, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ firstName, lastName, email }),
+        body: JSON.stringify({
+          firstName,
+          lastName,
+          email,
+          website: websiteInput ? websiteInput.value : '',
+          formStartedAt: startedAtInput ? startedAtInput.value : '',
+        }),
       });
 
       let data = {};

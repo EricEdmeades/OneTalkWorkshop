@@ -20,6 +20,30 @@ const KEAP_BASE_V1 = 'https://api.infusionsoft.com/crm/rest/v1';
 const KEAP_BASE_V2 = 'https://api.infusionsoft.com/crm/rest/v2';
 const TAG_ID = Number(process.env.KEAP_TAG_ID_STAGE_FRIGHT || 1831);
 
+// Anti-spam: minimum elapsed time between form render and submission. A real
+// user cannot fill three fields in under 3 seconds; bots that POST directly
+// without sitting on the page will trip this.
+const MIN_FORM_FILL_MS = 3000;
+// Reject submissions whose timestamp is older than 24h — likely replayed.
+const MAX_FORM_AGE_MS = 24 * 60 * 60 * 1000;
+
+const ALLOWED_HOST_SUFFIXES = ['onetalk.ericedmeades.com', '.vercel.app'];
+const ALLOWED_HOSTS_EXACT = ['localhost', '127.0.0.1'];
+
+function isAllowedOrigin(originOrReferer) {
+  if (!originOrReferer) return false;
+  let host;
+  try {
+    host = new URL(originOrReferer).hostname;
+  } catch (_) {
+    return false;
+  }
+  if (ALLOWED_HOSTS_EXACT.includes(host)) return true;
+  return ALLOWED_HOST_SUFFIXES.some((suffix) =>
+    suffix.startsWith('.') ? host.endsWith(suffix) : host === suffix,
+  );
+}
+
 function keapHeaders() {
   return {
     'Content-Type': 'application/json',
@@ -145,6 +169,29 @@ export default async function handler(req, res) {
   const firstName = trim(body.firstName);
   const lastName = trim(body.lastName);
   const email = trim(body.email).toLowerCase();
+  const honeypot = trim(body.website);
+  const formStartedAt = Number(body.formStartedAt);
+
+  // -- Anti-spam gates (return silent success so bots think they got through) -
+  const origin = req.headers.origin || req.headers.referer || '';
+  if (!isAllowedOrigin(origin)) {
+    console.warn(`[subscribe-otw] Blocked: bad origin "${origin}"`);
+    return res.status(200).json({ success: true });
+  }
+  if (honeypot) {
+    console.warn(`[subscribe-otw] Blocked: honeypot filled ("${honeypot}")`);
+    return res.status(200).json({ success: true });
+  }
+  if (!Number.isFinite(formStartedAt)) {
+    console.warn('[subscribe-otw] Blocked: missing/invalid formStartedAt');
+    return res.status(200).json({ success: true });
+  }
+  const elapsed = Date.now() - formStartedAt;
+  if (elapsed < MIN_FORM_FILL_MS || elapsed > MAX_FORM_AGE_MS) {
+    console.warn(`[subscribe-otw] Blocked: form age ${elapsed}ms out of range`);
+    return res.status(200).json({ success: true });
+  }
+  // ---------------------------------------------------------------------------
 
   if (!firstName) {
     return res.status(400).json({ success: false, error: 'Please enter your first name.' });
