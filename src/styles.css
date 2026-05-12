@@ -24,6 +24,17 @@
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html { scroll-behavior: smooth; }
 
+  /* Early-bird visibility — flipped by inline script in <head>.
+     data-eb="active": show .eb-only, hide .eb-ended-only.
+     data-eb="ended":  hide .eb-only, show .eb-ended-only.
+     Default-hide .eb-ended-only so it never flashes if the script hasn't run yet. */
+  .eb-ended-only { display: none; }
+  [data-eb="ended"] .eb-only { display: none !important; }
+  [data-eb="ended"] .eb-ended-only { display: inline; }
+  [data-eb="ended"] div.eb-ended-only,
+  [data-eb="ended"] p.eb-ended-only,
+  [data-eb="ended"] section.eb-ended-only { display: block; }
+
   body {
     font-family: var(--f-sans);
     background: var(--paper);

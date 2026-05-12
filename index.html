@@ -4,7 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>The One Talk Workshop with Eric Edmeades — Build Your Signature Talk in 3 Days</title>
-<meta name="description" content="In 3 days with Eric Edmeades, build your signature talk from scratch using The Speech Map™ — and walk away ready to deliver it without notes, slides, or a script. Live online May 15–17, 2026.">
+<script>
+  // Early-bird auto-cutoff: 2026-05-15 23:59:59 PT (= 2026-05-16 06:59:59 UTC).
+  // After this, [data-eb="ended"] hides .eb-only and reveals .eb-ended-only via CSS.
+  (function(){
+    var deadline = Date.UTC(2026, 4, 16, 6, 59, 59);
+    document.documentElement.setAttribute('data-eb', Date.now() < deadline ? 'active' : 'ended');
+  })();
+</script>
+<meta name="description" content="In 3 days with Eric Edmeades, build your signature talk from scratch using The Speech Map™ — and walk away ready to deliver it without notes, slides, or a script. Live online June 12–14, 2026.">
 <meta name="theme-color" content="#E26320">
 <link rel="canonical" href="https://onetalk.ericedmeades.com/">
 
@@ -13,7 +21,7 @@
 <meta property="og:site_name" content="Speaker Nation">
 <meta property="og:url" content="https://onetalk.ericedmeades.com/">
 <meta property="og:title" content="The One Talk Workshop with Eric Edmeades — Build Your Signature Talk in 3 Days">
-<meta property="og:description" content="3 days live with Eric Edmeades. Build your signature talk using The Speech Map™ — no notes, no script. May 15–17, 2026.">
+<meta property="og:description" content="3 days live with Eric Edmeades. Build your signature talk using The Speech Map™ — no notes, no script. June 12–14, 2026.">
 <meta property="og:image" content="https://onetalk.ericedmeades.com/assets/og-share.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
@@ -23,7 +31,7 @@
 <!-- Twitter -->
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="The One Talk Workshop with Eric Edmeades">
-<meta name="twitter:description" content="3 days live with Eric Edmeades. Build your signature talk using The Speech Map™ — no notes, no script. May 15–17, 2026.">
+<meta name="twitter:description" content="3 days live with Eric Edmeades. Build your signature talk using The Speech Map™ — no notes, no script. June 12–14, 2026.">
 <meta name="twitter:image" content="https://onetalk.ericedmeades.com/assets/og-share.png">
 <meta name="twitter:image:alt" content="The One Talk Workshop with Eric Edmeades">
 
@@ -35,10 +43,10 @@
 </head>
 <body>
 
-<!-- Announcement strip -->
-<div class="announce">
-  <span class="announce-full">Early-bird pricing ends <strong>May 8</strong> — then the seat goes to $1,597.</span>
-  <span class="announce-short">Early-bird ends <strong>May 8</strong> · Then $1,597</span>
+<!-- Announcement strip (auto-hides after early-bird deadline) -->
+<div class="announce eb-only">
+  <span class="announce-full">Early-bird pricing ends <strong>May 15</strong> — then the seat goes to $1,597.</span>
+  <span class="announce-short">Early-bird ends <strong>May 15</strong> · Then $1,597</span>
 </div>
 
 <!-- Nav — uses real Speaker Nation logo -->
@@ -56,7 +64,7 @@
   <div class="wrap">
     <div class="hero-grid">
       <div class="hero-left">
-        <span class="hero-flag">Live · 3 Days · May 15–17, 2026</span>
+        <span class="hero-flag">Live · 3 Days · June 12–14, 2026</span>
         <h1>
           The world's best speakers<br>
           don't <span class="accent">write</span> their talks.<br>
@@ -68,14 +76,14 @@
 
         <div>
           <a href="https://speakernation.com/flow/one-talk-workshop-may-2026/otw-may-2026-checkout/" class="btn-primary" data-cta="hero" rel="noopener">
-            Reserve My Seat · $1,297
+            Reserve My Seat · $<span class="eb-only">1,297</span><span class="eb-ended-only">1,597</span>
             <span class="arrow">→</span>
           </a>
           <p class="micro-assure"><strong>100% money-back guarantee.</strong> Attend all 3 days — if you don't leave with a complete framework for your signature talk, we refund you in full.</p>
         </div>
 
         <div class="hero-meta">
-          <div class="hero-meta-item"><span class="dot">●</span> May 15–17, 2026</div>
+          <div class="hero-meta-item"><span class="dot">●</span> June 12–14, 2026</div>
           <div class="hero-meta-item"><span class="dot">●</span> 10am–2pm New York time · Live Online</div>
           <div class="hero-meta-item"><span class="dot">●</span> Cohort capped at 100</div>
         </div>
@@ -479,8 +487,8 @@
         <div class="price-block">
           <div class="price-compare">Total Value <strong>$3,191</strong> · Eric's Speaking Academy is <strong>$15,000</strong></div>
           <div class="price-label">Your Investment Today</div>
-          <div class="price-now"><span class="dollar">$</span>1,297</div>
-          <div class="price-detail">Early-bird pricing ends May 8 · then <strong>$1,597</strong></div>
+          <div class="price-now"><span class="dollar">$</span><span class="eb-only">1,297</span><span class="eb-ended-only">1,597</span></div>
+          <div class="price-detail eb-only">Early-bird pricing ends May 15 · then <strong>$1,597</strong></div>
           <div class="price-detail" style="opacity: 0.6;">2-payment plan available at checkout</div>
         </div>
 
@@ -543,9 +551,9 @@
       </details>
 
       <details class="faq-item">
-        <summary>"$1,297 is a real commitment. Is it worth it right now?"</summary>
+        <summary>"$<span class="eb-only">1,297</span><span class="eb-ended-only">1,597</span> is a real commitment. Is it worth it right now?"</summary>
         <div class="faq-answer">
-          Fair question. Here's the math: Eric's keynote fee starts at $50,000/hour. His Speaking Academy is $15,000. The workshop is three full days of direct instruction with him for $1,297. If the talk you leave with leads to one paid booking, one client from a stage, one podcast invitation that changes your business — the workshop has paid for itself. And if it doesn't work for you, the guarantee refunds every dollar.
+          Fair question. Here's the math: Eric's keynote fee starts at $50,000/hour. His Speaking Academy is $15,000. The workshop is three full days of direct instruction with him for $<span class="eb-only">1,297</span><span class="eb-ended-only">1,597</span>. If the talk you leave with leads to one paid booking, one client from a stage, one podcast invitation that changes your business — the workshop has paid for itself. And if it doesn't work for you, the guarantee refunds every dollar.
         </div>
       </details>
 
@@ -601,7 +609,7 @@
       <details class="faq-item">
         <summary>"Is there a payment plan?"</summary>
         <div class="faq-answer">
-          Yes. At checkout you can split your investment into 2 payments of $677 (at the early-bird rate) or 2 payments of $827 (at the $1,597 rate), due two weeks apart. Full workshop access is unlocked as soon as your first payment processes.
+          Yes. At checkout you can split your investment into <span class="eb-only">2 payments of $677 (at the early-bird rate) or 2 payments of $827 (at the $1,597 rate)</span><span class="eb-ended-only">2 payments of $827</span>, due two weeks apart. Full workshop access is unlocked as soon as your first payment processes.
         </div>
       </details>
 
@@ -660,13 +668,13 @@
       <div class="seat-count"><span class="live-dot"></span> Cohort capped at 100 seats · limited availability</div>
       <h2>There's a talk inside you.<br><em>In three days, it will exist.</em></h2>
       <p class="lead">
-        The book deal, the podcast invitation, the paid speaking gig, the client — they all start with one talk. And on May 15, you can start building yours.
+        The book deal, the podcast invitation, the paid speaking gig, the client — they all start with one talk. And on June 12, you can start building yours.
       </p>
       <a href="https://speakernation.com/flow/one-talk-workshop-may-2026/otw-may-2026-checkout/" class="btn-primary btn-hero" data-cta="final_cta" rel="noopener">
-        Reserve My Seat · $1,297
+        Reserve My Seat · $<span class="eb-only">1,297</span><span class="eb-ended-only">1,597</span>
         <span class="arrow">→</span>
       </a>
-      <p style="margin-top: 24px; font-size: 0.82rem; opacity: 0.6; letter-spacing: 0.04em;">Early-bird pricing ends May 8 · 100% money-back guarantee</p>
+      <p style="margin-top: 24px; font-size: 0.82rem; opacity: 0.6; letter-spacing: 0.04em;"><span class="eb-only">Early-bird pricing ends May 15 · </span>100% money-back guarantee</p>
     </div>
   </div>
 </section>
