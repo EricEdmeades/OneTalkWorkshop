@@ -2,7 +2,7 @@
 
 Static landing page for **The One Talk Workshop** with Eric Edmeades, sold under
 the Speaker Nation brand. Deployed to Vercel at
-[onetalk.ericedmeades.com](https://onetalk.ericedmeades.com).
+[onetalkworkshop.com](https://onetalkworkshop.com).
 
 Built with plain HTML + CSS + a tiny bit of JS. Vite is used only as a dev
 server and build tool — no framework, no component system, nothing runtime.
@@ -84,9 +84,9 @@ vercel          # first run links the local project → a preview deployment
 vercel --prod   # promotes to production
 ```
 
-### Custom domain (onetalk.ericedmeades.com)
+### Custom domain (onetalkworkshop.com)
 
-1. Vercel → Project → *Settings* → *Domains* → Add `onetalk.ericedmeades.com`.
+1. Vercel → Project → *Settings* → *Domains* → Add `onetalkworkshop.com`.
 2. Vercel will show the required DNS record (typically a CNAME target like
    `cname.vercel-dns.com`). **Copy the exact value Vercel gives you — don't
    hardcode it from memory.**
@@ -127,5 +127,5 @@ vercel --prod   # promotes to production
 - [ ] Produce real `og-share.png` (1200×630) and place at `public/assets/og-share.png`
 - [ ] Set `VITE_GA_MEASUREMENT_ID` in Vercel (production + preview)
 - [ ] Confirm/set `VITE_META_PIXEL_ID` in Vercel
-- [ ] Add `onetalk.ericedmeades.com` as a custom domain in Vercel + CNAME at Cloudflare
+- [ ] Add `onetalkworkshop.com` as a custom domain in Vercel + CNAME at Cloudflare
 - [ ] Run `npm run preview` locally and click through the page one final time
