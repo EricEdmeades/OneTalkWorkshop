@@ -198,6 +198,6 @@ function swapForWaitlistConfirmation(form) {
   const confirm = document.createElement('div');
   confirm.className = 'lead-confirm';
   confirm.innerHTML =
-    '<strong>You\'re on the list.</strong> We\'ll email you as soon as registration opens.';
+    '<strong>You’re on the list.</strong> We’ll email you as soon as registration opens.';
   form.replaceWith(confirm);
 }
