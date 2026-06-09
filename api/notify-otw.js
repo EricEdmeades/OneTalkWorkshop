@@ -8,7 +8,7 @@ const TAG_ID = Number(process.env.KEAP_TAG_ID_WAITLIST || 1948);
 const MIN_FORM_FILL_MS = 3000;
 const MAX_FORM_AGE_MS = 24 * 60 * 60 * 1000;
 
-const ALLOWED_HOST_SUFFIXES = ['onetalk.ericedmeades.com', '.vercel.app'];
+const ALLOWED_HOST_SUFFIXES = ['onetalkworkshop.com', 'onetalk.ericedmeades.com', '.vercel.app'];
 const ALLOWED_HOSTS_EXACT = ['localhost', '127.0.0.1'];
 
 function isAllowedOrigin(originOrReferer) {
@@ -205,7 +205,7 @@ export default async function handler(req, res) {
       contactId,
       `OneTalk — Waitlist opt-in (${today})`,
       [
-        'Source: onetalk.ericedmeades.com',
+        'Source: onetalkworkshop.com',
         'Form: Notify Me When Registration Opens',
         `Tag applied: ${TAG_ID}`,
         `Name: ${firstName} ${lastName}`,

@@ -27,7 +27,7 @@ const MIN_FORM_FILL_MS = 3000;
 // Reject submissions whose timestamp is older than 24h — likely replayed.
 const MAX_FORM_AGE_MS = 24 * 60 * 60 * 1000;
 
-const ALLOWED_HOST_SUFFIXES = ['onetalk.ericedmeades.com', '.vercel.app'];
+const ALLOWED_HOST_SUFFIXES = ['onetalkworkshop.com', 'onetalk.ericedmeades.com', '.vercel.app'];
 const ALLOWED_HOSTS_EXACT = ['localhost', '127.0.0.1'];
 
 function isAllowedOrigin(originOrReferer) {
@@ -233,7 +233,7 @@ export default async function handler(req, res) {
       contactId,
       `OneTalk — 5 Steps opt-in (${today})`,
       [
-        'Source: onetalk.ericedmeades.com',
+        'Source: onetalkworkshop.com',
         'Form: 5 Steps to Overcoming Stage Fright',
         `Tag applied: ${TAG_ID}`,
         `Name: ${firstName} ${lastName}`,
