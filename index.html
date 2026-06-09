@@ -452,41 +452,44 @@
   </div>
 </section>
 
-<!-- ================= OFFER ================= -->
-<section class="offer sect-pad" id="register">
+<!-- ================= WAITLIST ================= -->
+<section class="offer sect-pad" id="waitlist">
   <div class="wrap">
     <div class="offer-inner">
-      <span class="eyebrow">Reserve Your Seat</span>
-      <h2>One workshop. A signature talk. A career unlocked.</h2>
+      <span class="eyebrow">Stay In The Loop</span>
+      <h2>Registration is opening soon.<br>Be the first to know.</h2>
+      <p class="lead" style="text-align:center; max-width:520px; margin:0 auto 2rem;">
+        Leave your name and email and we'll notify you the moment registration opens — including any early-bird pricing.
+      </p>
 
       <div class="price-frame">
-        <div class="includes">
-          <div class="include-item"><span class="include-check">✓</span><span>3 Full Days of Live Training with Eric Edmeades <em class="val">$2,500</em></span></div>
-          <div class="include-item"><span class="include-check">✓</span><span>The Speech Map™ Template <em class="val">$97</em></span></div>
-          <div class="include-item"><span class="include-check">✓</span><span>The Story Journal Template <em class="val">$97</em></span></div>
-          <div class="include-item"><span class="include-check">✓</span><span>Private Mastermind Community <em class="val">$197</em></span></div>
-          <div class="include-item"><span class="include-check">✓</span><span>Interactive Group Coaching Sessions <em class="val">$300</em></span></div>
-          <div class="include-item"><span class="include-check">✓</span><span>Direct Feedback On Your Talk From Eric <em class="val">Priceless</em></span></div>
-        </div>
-
-        <div class="price-block">
-          <div class="price-compare">Total Value <strong>$3,191</strong> · Eric's Speaking Academy is <strong>$15,000</strong></div>
-          <div class="price-label">Your Investment Today</div>
-          <div class="price-now"><span class="dollar">$</span><span class="eb-only">1,297</span><span class="eb-ended-only">1,597</span></div>
-          <div class="price-detail eb-only">Early-bird pricing ends June 1 · then <strong>$1,597</strong></div>
-          <div class="price-detail" style="opacity: 0.6;">2-payment plan available at checkout</div>
-        </div>
-
-        <a href="https://speakernation.com/flow/one-talk-workshop-may-2026/otw-may-2026-checkout/" class="btn-primary btn-hero" data-cta="offer" rel="noopener">
-          Reserve My Seat Now
-          <span class="arrow">→</span>
-        </a>
-
-        <div class="offer-assure">
-          <div class="offer-assure-item">🔒 SSL Secured Checkout</div>
-          <div class="offer-assure-item">✓ 100% Money-Back Guarantee</div>
-          <div class="offer-assure-item">✓ 2-Payment Plan Available</div>
-        </div>
+        <form class="lead-form" data-form="waitlist" action="/api/notify-otw" method="post" novalidate>
+          <div class="lead-row">
+            <div class="lead-field">
+              <label for="waitlist-firstname" class="sr-only">First name</label>
+              <input id="waitlist-firstname" name="firstName" type="text" required placeholder="First name" autocomplete="given-name">
+            </div>
+            <div class="lead-field">
+              <label for="waitlist-lastname" class="sr-only">Last name</label>
+              <input id="waitlist-lastname" name="lastName" type="text" required placeholder="Last name" autocomplete="family-name">
+            </div>
+          </div>
+          <div class="lead-field lead-field-full">
+            <label for="waitlist-email" class="sr-only">Email address</label>
+            <input id="waitlist-email" name="email" type="email" required placeholder="your@email.com" autocomplete="email">
+          </div>
+          <div class="lead-hp" aria-hidden="true">
+            <label for="waitlist-website">Website (leave blank)</label>
+            <input id="waitlist-website" name="website" type="text" tabindex="-1" autocomplete="off">
+          </div>
+          <input type="hidden" name="formStartedAt" value="">
+          <button type="submit" class="btn-primary lead-submit">
+            Notify Me When Registration Opens
+            <span class="arrow">→</span>
+          </button>
+          <p class="lead-error" role="alert" aria-live="polite"></p>
+        </form>
+        <p class="lead-micro" style="text-align:center; margin-top:1rem;">Your information is 100% secure and will never be shared with anyone.</p>
       </div>
     </div>
   </div>
