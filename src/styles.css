@@ -1235,6 +1235,7 @@
     border: 1.5px solid var(--wine);
     max-width: 620px;
     margin: 0 auto;
+    color: var(--charcoal);
   }
   .lead-confirm strong {
     display: block;
