@@ -1,16 +1,16 @@
 // =============================================================================
 // Affiliate ref passthrough
 // -----------------------------------------------------------------------------
-// Reads ?ref= from the landing URL, persists it in localStorage for 30 days,
-// and applies it to every checkout CTA so AffiliateWP can attribute the sale.
-// Lead-magnet form is untouched — ref tracking is checkout-only.
+// Reads ?ref= from the landing URL and persists it in localStorage for 30
+// days. register.js reads it back via getStoredRef() and forwards it to
+// /api/create-checkout as client_reference_id, so AffiliateWP can attribute
+// the sale once Stripe's webhook fires.
 // =============================================================================
 
 const STORAGE_KEY = 'otw_affiliate_ref';
 const MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000;
-const CHECKOUT_BASE = 'https://speakernation.com/flow/one-talk-workshop-may-2026/otw-may-2026-checkout/';
 
-function readStoredRef() {
+export function getStoredRef() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
@@ -34,14 +34,4 @@ function writeStoredRef(value) {
 export function initAffiliateRef() {
   const urlRef = new URLSearchParams(window.location.search).get('ref');
   if (urlRef) writeStoredRef(urlRef);
-
-  const ref = urlRef || readStoredRef();
-  if (!ref) return;
-
-  const links = document.querySelectorAll(`a[href^="${CHECKOUT_BASE}"]`);
-  links.forEach((link) => {
-    const url = new URL(link.href);
-    url.searchParams.set('ref', ref);
-    link.href = url.toString();
-  });
 }
