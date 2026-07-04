@@ -68,7 +68,7 @@ New npm dependency: `stripe` (official SDK), used by both new `/api` functions.
 - **August**: Early through Jul 7 23:59:59 ET → Retail from Jul 8
 - **September**: Early through Jul 30 23:59:59 ET → Retail from Aug 1
 
-The client (`/register.html`) computes the same cutoffs independently for *display* (so the page shows the right price without a round-trip), but `api/create-checkout.js` recomputes it server-side and that's what actually determines the Stripe Price used — a stale/bookmarked page can't buy early pricing after the cutoff.
+The client (`/register.html`) and the server both derive tier from the same shared `lib/pricing.js` module (client-side purely for *display*, so the page shows the right price without a round-trip) — a single source of truth for the cutoff dates instead of two independent copies that could drift. `api/create-checkout.js` is what actually determines the Stripe Price used, so a stale/bookmarked page can't buy early pricing after the cutoff even if its bundled copy of the cutoffs were ever out of date.
 
 **Subscription cancel timing:** the recurring Price's own billing interval (every 2 weeks) is what actually fires the 2nd charge, ~14 days after subscription creation — `cancel_at` only needs to stop the *3rd* cycle from ever billing. Setting it to exactly `now + 14 days` would race the subscription's own cycle boundary and risk canceling before the 2nd invoice is generated. Setting it to `now + 15 days` guarantees the 2nd charge has already landed before cancellation fires, while still canceling well before a 3rd cycle (day 28) could start.
 
