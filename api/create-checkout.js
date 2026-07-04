@@ -4,7 +4,7 @@
 // stale/bookmarked link can't buy early pricing after the cutoff.
 
 import Stripe from 'stripe';
-import { getActiveTier, getSubscriptionCancelAt, isValidDate, isValidPlan } from '../lib/pricing.js';
+import { getActiveTier, isValidDate, isValidPlan } from '../lib/pricing.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -52,9 +52,7 @@ export default async function handler(req, res) {
       client_reference_id: typeof ref === 'string' && ref ? ref : undefined,
       success_url: `${origin}/register.html?success=1&date=${encodeURIComponent(date)}&tier=${encodeURIComponent(tier)}&plan=${encodeURIComponent(plan)}`,
       cancel_url: `${origin}/register.html?canceled=1`,
-      ...(plan === 'plan'
-        ? { subscription_data: { cancel_at: getSubscriptionCancelAt(), metadata } }
-        : {}),
+      ...(plan === 'plan' ? { subscription_data: { metadata } } : {}),
     });
 
     return res.status(200).json({ url: session.url });

@@ -7,6 +7,7 @@
 // there's no user waiting on this request to retry manually.
 
 import Stripe from 'stripe';
+import { getSubscriptionCancelAt } from '../lib/pricing.js';
 
 export const config = { api: { bodyParser: false } };
 
@@ -179,6 +180,15 @@ export default async function handler(req, res) {
     }
 
     await applyTag(contactId, tagId);
+
+    // cancel_at can't be set on Checkout Session creation (Checkout's
+    // subscription_data doesn't expose that field) — it has to be applied
+    // to the real Subscription object once it exists, which is here.
+    if (plan === 'plan' && session.subscription) {
+      await stripe.subscriptions.update(session.subscription, {
+        cancel_at: getSubscriptionCancelAt(),
+      });
+    }
 
     const amount = session.amount_total != null ? (session.amount_total / 100).toFixed(2) : 'unknown';
     const today = new Date().toISOString().slice(0, 10);

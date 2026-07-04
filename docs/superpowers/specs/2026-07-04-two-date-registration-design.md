@@ -33,8 +33,7 @@ index.html CTAs (nav / hero / new date-teaser section / final_cta)
 api/create-checkout.js (new)
   - re-derives the active tier itself from the server clock — authoritative
   - creates a Stripe Checkout Session (mode:"payment" for full-pay;
-    mode:"subscription" with subscription_data.cancel_at = now+15d for the plan
-    — 1 day after the 2nd billing-cycle charge, not exactly on it; see note below)
+    mode:"subscription" for the plan — no cancel_at here, see note below)
   - metadata: { date, tier, plan }; client_reference_id = stored affiliate ref
   - returns { url }; browser redirects there
         ▼
@@ -46,6 +45,9 @@ api/stripe-webhook.js (new)
   - reads session.metadata.date + session.customer_details
   - find-or-create Keap contact (same helpers as subscribe-otw.js)
   - applies tag 2008 (august) or 1825 (september)
+  - for plan:"plan", calls stripe.subscriptions.update(session.subscription,
+    { cancel_at: now+15d }) — Checkout's subscription_data has no cancel_at
+    field, so this can only be set once the real Subscription exists (see note below)
   - adds a note with date/tier/plan/amount
   - 500 on Keap failure so Stripe retries; 200 otherwise
 ```
@@ -71,6 +73,8 @@ New npm dependency: `stripe` (official SDK), used by both new `/api` functions.
 The client (`/register.html`) and the server both derive tier from the same shared `lib/pricing.js` module (client-side purely for *display*, so the page shows the right price without a round-trip) — a single source of truth for the cutoff dates instead of two independent copies that could drift. `api/create-checkout.js` is what actually determines the Stripe Price used, so a stale/bookmarked page can't buy early pricing after the cutoff even if its bundled copy of the cutoffs were ever out of date.
 
 **Subscription cancel timing:** the recurring Price's own billing interval (every 2 weeks) is what actually fires the 2nd charge, ~14 days after subscription creation — `cancel_at` only needs to stop the *3rd* cycle from ever billing. Setting it to exactly `now + 14 days` would race the subscription's own cycle boundary and risk canceling before the 2nd invoice is generated. Setting it to `now + 15 days` guarantees the 2nd charge has already landed before cancellation fires, while still canceling well before a 3rd cycle (day 28) could start.
+
+**Correction (found in production testing):** `cancel_at` is *not* a valid field on Checkout Session's `subscription_data` — that sub-object only exposes a limited parameter set (metadata, billing_cycle_anchor, trial settings, etc.), not the full Subscription API. Passing it there causes Stripe to reject the whole session-creation call, which surfaced as a generic "We couldn't start checkout" error for the 2-payment plan only (full-pay was unaffected, since it doesn't use `subscription_data` at all). The fix moves `cancel_at` out of `api/create-checkout.js` entirely and applies it via `stripe.subscriptions.update(session.subscription, { cancel_at })` inside `api/stripe-webhook.js`, once `checkout.session.completed` fires and the real Subscription object exists.
 
 ---
 
