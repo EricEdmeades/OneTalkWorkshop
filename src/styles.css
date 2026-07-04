@@ -1063,6 +1063,31 @@
   }
   .offer-assure-item { display: flex; gap: 8px; align-items: center; }
 
+  /* ================= REGISTER (date selection) ================= */
+  .date-cards {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+    max-width: 1040px;
+    margin: 0 auto;
+  }
+  @media (max-width: 900px) {
+    .date-cards { grid-template-columns: 1fr; }
+  }
+  .date-card .price-now .was {
+    text-decoration: line-through;
+    opacity: 0.5;
+    font-size: 0.4em;
+    vertical-align: 12%;
+    margin-left: 10px;
+  }
+  .date-card-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 28px;
+  }
+
   /* ================= GUARANTEE ================= */
   .guarantee {
     padding: 110px 0;
