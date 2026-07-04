@@ -353,6 +353,11 @@
 
   /* ================= SECTION HEADER ================= */
   .sect-pad { padding: 130px 0; }
+
+  /* Register page: compact top so the date cards + CTAs sit above the fold on desktop */
+  .page-register .sect-pad { padding: 44px 0 72px; }
+  .page-register .offer h1 { font-size: clamp(2.2rem, 4.2vw, 3.4rem); }
+  .page-register .eyebrow { margin-bottom: 0.7rem; }
   .sect-head { text-align: center; max-width: 820px; margin: 0 auto 70px; }
   .sect-head h2 { margin-bottom: 22px; }
   .sect-head .lead { font-size: 1.15rem; color: var(--charcoal); font-weight: 400; line-height: 1.6; }
