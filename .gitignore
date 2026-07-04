@@ -31,3 +31,6 @@ dist-ssr
 
 # gstack skill outputs (qa reports, etc.) — local-only
 .gstack/
+
+# superpowers brainstorming visual companion — local-only
+.superpowers/
