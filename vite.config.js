@@ -9,6 +9,7 @@ export default {
       input: {
         main: resolve(__dirname, 'index.html'),
         stories: resolve(__dirname, 'stories.html'),
+        register: resolve(__dirname, 'register.html'),
       },
     },
   },
