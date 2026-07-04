@@ -50,9 +50,17 @@ export default async function handler(req, res) {
       line_items: [{ price: priceId, quantity: 1 }],
       metadata,
       client_reference_id: typeof ref === 'string' && ref ? ref : undefined,
+      // Show the "Add promotion code" field so restricted 100%-off codes work
+      // for team testing. Real subscribers still pay (coupon must be entered).
+      allow_promotion_codes: true,
       success_url: `${origin}/register.html?success=1&date=${encodeURIComponent(date)}&tier=${encodeURIComponent(tier)}&plan=${encodeURIComponent(plan)}`,
       cancel_url: `${origin}/register.html?canceled=1`,
-      ...(plan === 'plan' ? { subscription_data: { metadata } } : {}),
+      // if_required: with a 100%-off coupon nothing is ever due, so Checkout
+      // skips card collection (frictionless test); real subscribers owe >$0 and
+      // are still asked for a card.
+      ...(plan === 'plan'
+        ? { subscription_data: { metadata }, payment_method_collection: 'if_required' }
+        : {}),
     });
 
     return res.status(200).json({ url: session.url });
