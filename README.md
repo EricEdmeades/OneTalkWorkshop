@@ -46,11 +46,18 @@ Use `npm run preview` to smoke-test the production bundle before pushing.
 
 ```
 onetalk-landing/
-├── index.html              # page markup (copy, structure — do not refactor)
+├── index.html              # main sales page (copy, structure — do not refactor)
+├── register.html           # date/tier/plan selection → Stripe Checkout
 ├── src/
 │   ├── styles.css          # all styles (extracted from index.html)
 │   ├── analytics.js        # GA4 + Meta Pixel + CTA tracking, all grouped here
-│   └── main.js             # entrypoint, calls initAnalytics() on DOM ready
+│   ├── main.js              # index.html entrypoint
+│   └── register.js         # register.html entrypoint — renders date cards, POSTs to /api/create-checkout
+├── lib/
+│   └── pricing.js          # shared Early/Retail tier + cutoff-date logic (client display + server truth)
+├── api/
+│   ├── create-checkout.js  # creates a Stripe Checkout Session for a chosen date/tier/plan
+│   └── stripe-webhook.js   # applies the Keap date tag once a Checkout Session completes
 ├── public/
 │   └── assets/             # brand assets (logos, favicon, photos)
 ├── vercel.json             # build + headers config for Vercel
@@ -118,7 +125,7 @@ vercel --prod   # promotes to production
 | GA4 tracking | ✅ Code in place, gated on `VITE_GA_MEASUREMENT_ID` |
 | Meta Pixel | ✅ Code in place, gated on `VITE_META_PIXEL_ID` |
 | CTA click tracking | ✅ Fires `cta_click` with section label (nav, hero, offer, final_cta) |
-| Checkout CTAs | ✅ All four Reserve-My-Seat buttons → `speakernation.com/flow/one-talk-workshop-may-2026/otw-may-2026-checkout/` |
+| Registration | ✅ `/register.html` — two dates (Aug 7–9 / Sep 18–20, 2026), automatic Early/Retail tiering, Stripe Checkout (pay in full or 2-payment plan), Keap tag applied via webhook |
 
 ---
 
