@@ -41,9 +41,10 @@ Today `ref` is only used as `client_reference_id` (for AffiliateWP). It is **not
    - strip to `[a-zA-Z0-9._-]`
    - return `""` (or omit) when empty
    - Mirrors S3-LMS's `sanitize()` in `src/lib/ref.ts` so junk/empty values don't pollute metadata.
-2. Add the sanitized ref to the existing `metadata` object:
+2. Sanitize first, then add to the existing `metadata` object (omit the key when empty so no blank `ref` is stored):
    ```js
-   const metadata = { date, tier, plan, ...(ref ? { ref } : {}) };
+   const cleanRef = sanitizeRef(ref);
+   const metadata = { date, tier, plan, ...(cleanRef ? { ref: cleanRef } : {}) };
    ```
    Because `subscription_data: { metadata }` **reuses the same object**, the ref lands on both the Checkout Session and, for `plan: "plan"` subscriptions, the Subscription — no extra wiring.
 3. **Leave `client_reference_id` as-is** (still feeds AffiliateWP). Additive change only.
