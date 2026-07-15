@@ -5,6 +5,7 @@
 
 import Stripe from 'stripe';
 import { getActiveTier, isValidDate, isValidPlan } from '../lib/pricing.js';
+import { sanitizeRef } from '../lib/ref.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -42,7 +43,8 @@ export default async function handler(req, res) {
   }
 
   const origin = req.headers.origin || `https://${req.headers.host}`;
-  const metadata = { date, tier, plan };
+  const cleanRef = sanitizeRef(ref);
+  const metadata = { date, tier, plan, ...(cleanRef ? { ref: cleanRef } : {}) };
 
   try {
     const session = await stripe.checkout.sessions.create({
