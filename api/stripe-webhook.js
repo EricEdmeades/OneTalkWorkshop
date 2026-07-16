@@ -183,10 +183,15 @@ export default async function handler(req, res) {
 
     // cancel_at can't be set on Checkout Session creation (Checkout's
     // subscription_data doesn't expose that field) — it has to be applied
-    // to the real Subscription object once it exists, which is here.
+    // to the real Subscription object once it exists, which is here. The
+    // subscription is retrieved first because cancel_at must be computed
+    // from ITS billing_cycle_anchor: it has to land exactly on the end of
+    // the 2nd billing period, or flexible billing mode prorates the 2nd
+    // installment (see getSubscriptionCancelAt in lib/pricing.js).
     if (plan === 'plan' && session.subscription) {
-      await stripe.subscriptions.update(session.subscription, {
-        cancel_at: getSubscriptionCancelAt(),
+      const subscription = await stripe.subscriptions.retrieve(session.subscription);
+      await stripe.subscriptions.update(subscription.id, {
+        cancel_at: getSubscriptionCancelAt(subscription.billing_cycle_anchor),
       });
     }
 
