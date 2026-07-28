@@ -52,6 +52,11 @@ export default async function handler(req, res) {
       line_items: [{ price: priceId, quantity: 1 }],
       metadata,
       client_reference_id: typeof ref === 'string' && ref ? ref : undefined,
+      // Always collect the buyer's name so customer_details.name is populated
+      // for the Keap contact. Without this, free/100%-off registrations (no
+      // card collected via `if_required`) arrive nameless and the webhook
+      // falls back to "Unknown Unknown".
+      billing_address_collection: 'required',
       // Show the "Add promotion code" field so restricted 100%-off codes work
       // for team testing. Real subscribers still pay (coupon must be entered).
       allow_promotion_codes: true,
