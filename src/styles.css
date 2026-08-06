@@ -1274,6 +1274,11 @@
     margin-bottom: 8px;
     font-weight: 700;
   }
+  /* On the register success state the "pick a date" lead is hidden, which
+     removes the gap it provided — restore it so the panel isn't crowded
+     against the heading. Scoped to .page-register so the lead-magnet
+     confirmation on the main page is unaffected. */
+  .page-register .register-cards .lead-confirm { margin-top: 2.5rem; }
   .sr-only {
     position: absolute;
     width: 1px; height: 1px;
