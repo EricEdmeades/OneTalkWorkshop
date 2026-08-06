@@ -77,6 +77,19 @@ function showConfirmation(params) {
   const dateLabel = DATE_LABELS[date] || 'your workshop';
   const tierLabel = tier === 'early' ? 'Early Registration' : 'Retail Registration';
 
+  // Swap the "Choose your date." intro too — it lives in a separate
+  // .offer-inner block above the cards, so replacing only .register-cards
+  // (below) would leave a registered buyer still being told to pick a date.
+  const intro = document.querySelector('.offer-inner');
+  if (intro) {
+    const eyebrow = intro.querySelector('.eyebrow');
+    const heading = intro.querySelector('h1');
+    const lead = intro.querySelector('.lead');
+    if (eyebrow) eyebrow.textContent = "You're all set";
+    if (heading) heading.textContent = 'See you there.';
+    if (lead) lead.style.display = 'none';
+  }
+
   container.innerHTML = `
     <div class="lead-confirm">
       <strong>You're registered!</strong>
