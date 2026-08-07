@@ -153,21 +153,35 @@
     background: transparent;
     border: 1.5px solid var(--wine);
     border-radius: 2px;
-    font-size: 0.72rem;
-    letter-spacing: 0.2em;
+    font-size: 0.76rem;
+    letter-spacing: 0.18em;
     text-transform: uppercase;
     font-weight: 700;
     color: var(--wine);
     margin-bottom: 32px;
   }
+  /* One flex item, so the separator sits inline instead of inheriting the
+     flag's 12px gap between the pulsing dot and the text. */
+  .hero-flag .flag-text { display: block; }
+  .hero-flag .flag-sep {
+    opacity: 0.45;
+    margin: 0 0.15em;
+  }
   .hero-flag::before {
     content: "";
+    flex: 0 0 auto;
     width: 6px; height: 6px;
     background: var(--wine);
     border-radius: 50%;
     animation: pulse 2s infinite;
   }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+  /* Below ~400px the full flag would wrap to two lines. Drop the "Live Online"
+     tail — the hero-meta bullets below already carry it — and keep the name
+     on one line. */
+  @media (max-width: 400px) {
+    .hero-flag .flag-tail { display: none; }
+  }
 
   .hero h1 { margin-bottom: 32px; color: var(--black); }
   .hero h1 .accent {
@@ -1478,7 +1492,7 @@
     /* Tighter hero headline floor so it doesn't overflow 320px viewports. */
     h1 { font-size: clamp(2rem, 9vw, 2.8rem); }
     .hero-sub { font-size: 1.05rem; margin-bottom: 32px; }
-    .hero-flag { font-size: 0.66rem; letter-spacing: 0.16em; }
+    .hero-flag { font-size: 0.64rem; letter-spacing: 0.12em; }
     .hero-meta { gap: 16px; padding-top: 20px; margin-top: 28px; }
     .hero-meta-item { font-size: 0.82rem; }
     /* Trust bar: stack label above stats, tighter numbers. */
