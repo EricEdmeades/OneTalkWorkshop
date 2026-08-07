@@ -309,7 +309,10 @@ function renderFeedbackDay(day) {
     </section>`;
 }
 
-function renderFeedback(feedback) {
+// Exported for api/results.feedback.test.js. This is the one part of the page
+// an operator opens mid-workshop, so a template typo here must fail in CI
+// rather than as a 502 on the evening of day 1.
+export function renderFeedback(feedback) {
   if (feedback.error) {
     return `<section class="event"><h2>Feedback</h2>
       <p class="warn">Could not read the feedback table just now (${escapeHtml(feedback.error)}). The registration figures above are unaffected.</p>
@@ -330,6 +333,14 @@ function renderFeedback(feedback) {
     <div class="card highlight">
       <div class="label">Workshop NPS${basisLabel ? ` (${escapeHtml(basisLabel)})` : ''}</div>
       <div class="value">${formatNps(report.headlineNps.score)}</div>
+      <!-- Sample size sits with the number, not in a footnote: mid-workshop
+           this can be a +100 built from one response, and a headline that
+           hides that invites a decision it cannot carry. -->
+      <div class="card-sub">${
+        report.headlineNps.responses
+          ? `from ${report.headlineNps.responses} response${report.headlineNps.responses === 1 ? '' : 's'}`
+          : 'no responses yet'
+      }</div>
     </div>
     <div class="card">
       <div class="label">Attendees responding</div>
@@ -524,6 +535,7 @@ const PAGE_CSS = `
   }
   .card.highlight { border-color: var(--wine); border-width: 2px; }
   .card.highlight .value { color: var(--wine); }
+  .card-sub { margin-top: 4px; font-size: 0.75rem; color: var(--muted); }
   .nps-bands { margin: -34px 0 22px; color: var(--muted); font-size: 0.82rem; }
   .empty-day { color: var(--muted); font-style: italic; margin: 0; }
   .verbatims { margin-top: 22px; }
