@@ -426,23 +426,29 @@ export default async function handler(req, res) {
     const form = isDelete ? await readBody(req) : {};
 
     if (isDelete) {
-      // One diagnostic line, no secrets: shape of what arrived, so a refusal
-      // can be explained from the logs instead of guessed at.
+      const tokenOk = tokenMatches(form.token, process.env.RESULTS_PASSWORD);
+      const foreign = originIsForeign(req);
+
+      // Record the VERDICT of each check, not just the shape of the request.
+      // The previous version logged only that something failed, which is why
+      // two fixes shipped against a guess. Values stay out: the token's first
+      // 6 characters are enough to tell "wrong token" from "stale token",
+      // without putting the secret in a log.
       console.log(
         '[results] delete attempt',
         JSON.stringify({
-          contentType: req.headers['content-type'] || null,
-          platformParsedBody: typeof req.body,
-          formKeys: Object.keys(form),
-          hasToken: Boolean(form.token),
-          origin: req.headers.origin ? 'present' : 'absent',
-          referer: req.headers.referer ? 'present' : 'absent',
+          tokenOk,
+          originForeign: foreign,
+          tokenPrefix: typeof form.token === 'string' ? form.token.slice(0, 6) : null,
+          expectedPrefix: actionToken(process.env.RESULTS_PASSWORD).slice(0, 6),
+          tokenLength: typeof form.token === 'string' ? form.token.length : null,
+          tokenType: Array.isArray(form.token) ? 'array' : typeof form.token,
+          originHost: req.headers.origin || req.headers.referer || null,
+          idCount: Array.isArray(form.id) ? form.id.length : form.id ? 1 : 0,
         })
       );
 
-      // Token first: it is the control that actually holds, and it works
-      // regardless of which headers the browser chose to send.
-      if (!tokenMatches(form.token, process.env.RESULTS_PASSWORD) || originIsForeign(req)) {
+      if (!tokenOk || foreign) {
         // Deliberately terse: a cross-site caller learns nothing beyond "no".
         console.error('[results] rejected a delete that failed the action check');
         return res
