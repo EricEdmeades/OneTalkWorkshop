@@ -29,6 +29,7 @@ import { renderMessage } from '../lib/report-chrome.js';
 import { renderRegistrationsPage } from '../lib/registrations-render.js';
 import { renderSurveysPage } from '../lib/feedback-render.js';
 import { renderDashboard } from '../lib/dashboard-render.js';
+import { renderSubmissionsPage, isRecordId } from '../lib/submissions-render.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -55,7 +56,60 @@ const AIRTABLE_API = 'https://api.airtable.com/v0';
 const FEEDBACK_BASE_ID = 'apphi4tks9sL7aMoy';
 const FEEDBACK_TABLE_ID = 'tblIaTmblcwfvDGrY';
 
-const VIEWS = { dashboard: 'dashboard', registrations: 'registrations', surveys: 'surveys' };
+const VIEWS = {
+  dashboard: 'dashboard',
+  registrations: 'registrations',
+  surveys: 'surveys',
+  submissions: 'submissions',
+};
+
+// Deletes are POSTed from the submissions table. Basic auth credentials are
+// attached by the browser automatically, including on a cross-site form post,
+// so the Origin check is what actually stops another site from deleting an
+// operator's data while they happen to be logged in.
+const ALLOWED_ORIGINS = [
+  'https://onetalkworkshop.com',
+  'https://www.onetalkworkshop.com',
+  'https://onetalk.ericedmeades.com',
+];
+
+function sameOrigin(req) {
+  const raw = req.headers.origin || req.headers.referer || '';
+  if (!raw) return false;
+  let host;
+  try {
+    host = new URL(raw).host;
+  } catch (_) {
+    return false;
+  }
+  if (host.startsWith('localhost') || host.startsWith('127.0.0.1')) return true;
+  if (host.endsWith('.vercel.app')) return true;
+  return ALLOWED_ORIGINS.some((allowed) => new URL(allowed).host === host);
+}
+
+// Airtable deletes at most 10 records per request.
+const DELETE_BATCH = 10;
+
+async function deleteSubmissions(ids) {
+  const pat = process.env.AIRTABLE_PAT;
+  if (!pat) throw new Error('Feedback storage is not configured.');
+
+  let deleted = 0;
+  for (let i = 0; i < ids.length; i += DELETE_BATCH) {
+    const batch = ids.slice(i, i + DELETE_BATCH);
+    const url = new URL(`${AIRTABLE_API}/${FEEDBACK_BASE_ID}/${FEEDBACK_TABLE_ID}`);
+    batch.forEach((id) => url.searchParams.append('records[]', id));
+
+    const res = await fetch(url, {
+      method: 'DELETE',
+      headers: { Authorization: `Bearer ${pat}` },
+    });
+    if (!res.ok) throw new Error(`Airtable ${res.status}`);
+    const body = await res.json();
+    deleted += (body.records || []).filter((r) => r.deleted).length;
+  }
+  return deleted;
+}
 
 // --- Auth ---------------------------------------------------------------
 
@@ -201,6 +255,11 @@ async function loadFeedbackResponses() {
         answers = {}; // A malformed blob loses its detail, not the whole response.
       }
       responses.push({
+        // Carried so /results/submissions can list and delete individual rows.
+        // buildFeedbackReport ignores both.
+        id: record.id,
+        submittedAt: f['Submitted At'] || null,
+        contactEmail: f['Contact Email'] || '',
         day: DAY_FROM_LABEL[f.Day] || null,
         respondent: f.Respondent || null,
         nps: typeof f.NPS === 'number' ? f.NPS : null,
@@ -253,8 +312,10 @@ export default async function handler(req, res) {
   // HEAD is a valid way to probe this URL (curl -I, uptime checks). Treat it
   // as GET and let the platform drop the body, rather than 405-ing a method
   // the resource genuinely supports.
-  if (req.method !== 'GET' && req.method !== 'HEAD') {
-    res.setHeader('Allow', 'GET, HEAD');
+  // POST is accepted only by the submissions view, to delete rows.
+  const isDelete = req.method === 'POST';
+  if (req.method !== 'GET' && req.method !== 'HEAD' && !isDelete) {
+    res.setHeader('Allow', 'GET, HEAD, POST');
     return res.status(405).send('Method not allowed');
   }
 
@@ -317,11 +378,67 @@ export default async function handler(req, res) {
       );
   }
 
-  // The survey report needs no Stripe data at all, so it skips the walk
-  // entirely — the page an operator refreshes between sessions is the fast one.
+  // The survey pages need no Stripe data at all, so they skip the walk
+  // entirely — the pages an operator refreshes between sessions are the fast
+  // ones.
   if (view === VIEWS.surveys) {
     const feedback = await loadFeedback();
     return res.status(200).send(renderSurveysPage(feedback, { fetchedAt: Date.now() }));
+  }
+
+  if (view === VIEWS.submissions) {
+    let deleted = 0;
+    let actionError = null;
+
+    if (isDelete) {
+      if (!sameOrigin(req)) {
+        // Deliberately terse: a cross-site caller learns nothing beyond "no".
+        console.error('[results] rejected a cross-origin delete');
+        return res
+          .status(403)
+          .send(renderMessage('Refused', 'That request did not come from this site.'));
+      }
+
+      const raw = req.body?.id;
+      const ids = (Array.isArray(raw) ? raw : [raw]).filter(isRecordId);
+      if (!ids.length) {
+        actionError = 'Nothing was selected, so nothing was deleted.';
+      } else {
+        try {
+          deleted = await deleteSubmissions(ids);
+          console.log(`[results] deleted ${deleted} submission(s)`);
+        } catch (err) {
+          const message = err instanceof Error ? err.message : String(err);
+          console.error('[results] delete', message);
+          actionError = `Could not delete those rows (${message}).`;
+        }
+      }
+    }
+
+    // Always re-read after a delete, so the table reflects what is actually
+    // stored rather than what the operator hoped happened.
+    let rows = [];
+    try {
+      const loaded = await loadFeedbackResponses();
+      rows = loaded.responses;
+      if (!loaded.configured) {
+        actionError = actionError || 'Feedback storage is not configured (AIRTABLE_PAT).';
+      }
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('[results] submissions', message);
+      actionError = actionError || `Could not read the feedback table (${message}).`;
+    }
+
+    return res
+      .status(200)
+      .send(renderSubmissionsPage(rows, { fetchedAt: Date.now(), deleted, error: actionError }));
+  }
+
+  // Every other view is a GET-only page.
+  if (isDelete) {
+    res.setHeader('Allow', 'GET, HEAD');
+    return res.status(405).send('Method not allowed');
   }
 
   if (!process.env.STRIPE_SECRET_KEY) {
