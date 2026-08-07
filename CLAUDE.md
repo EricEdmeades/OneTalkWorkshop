@@ -59,11 +59,19 @@ To test analytics locally, copy `.env.example` to `.env.local` and set `VITE_GA_
 
 A **tag-apply failure is treated as a hard failure** in both `api/subscribe-otw.js` and `api/stripe-webhook.js`, even though the contact was already created/updated — Keap can return HTTP 200 with a per-tag error in the response body (e.g. `{"1831":"TAG_ID_NOT_FOUND"}"`), so `applyTag` inspects the body, not just `res.ok`. If the tag doesn't apply, the delivery automation never fires, so this must surface as an error rather than a silent success.
 
+**`api/results.js`** serves the password-protected registration report at `/results` (a `rewrites` entry in `vercel.json` maps the clean path to the function). HTTP Basic against `RESULTS_USER`/`RESULTS_PASSWORD`, compared with hashed `timingSafeEqual` so neither a wrong username nor a wrong-length password is distinguishable by timing. It walks every Checkout Session and groups completed ones by `metadata.date` and discount code, resolving `promo_…` ids to human-readable codes via `promotionCodes.list()`/`coupons.list()`.
+
+The report is **aggregate-only by construction**: `loadSessions()` projects each session down to `{status, mode, amount_total, metadata.date, discounts}` at the Stripe boundary, so `customer`, `customer_details`, `customer_email`, `client_reference_id` and `payment_intent` never enter the pipeline. There is no downstream "hide the names" filter that a later change could quietly remove.
+
+**`lib/results.js`** holds the pure aggregation (`buildReport`, `formatMoney`, `formatPct`) and is unit-tested in `lib/results.test.js` — same split as `lib/pricing.js`/`lib/seats.js`, so the counting and money math are verifiable without a network. Two revenue columns: **Collected** is `amount_total` as Stripe took it; **Contracted** multiplies a `mode: "subscription"` registration by `SUBSCRIPTION_PERIOD_COUNT` (exported from `lib/pricing.js`) because `cancel_at` pins a plan to exactly 2 billings. Importing that constant rather than hardcoding `2` is what keeps the revenue math and the `cancel_at` math from drifting.
+
 ## Deployment
 
 `vercel.json` sets `buildCommand`/`outputDirectory` for Vite, plus security headers (HSTS, X-Frame-Options, etc.) and long-cache `Cache-Control` for `/assets/*`. Branch mapping: `main` → production, any other branch or PR → preview deployment. See `README.md` for the full Vercel Git-integration and custom-domain setup steps.
 
 Stripe requires manual one-time setup outside this codebase before registration works end-to-end: create the 4 Prices (`STRIPE_PRICE_EARLY_FULL`/`STRIPE_PRICE_RETAIL_FULL`/`STRIPE_PRICE_EARLY_PLAN`/`STRIPE_PRICE_RETAIL_PLAN`) in the Stripe Dashboard, register the `/api/stripe-webhook` endpoint for `checkout.session.completed`, and set all the new env vars (see `.env.example`) in Vercel.
+
+`RESULTS_USER` and `RESULTS_PASSWORD` gate the `/results` report and are **not** listed in `.env.example` — set them directly in Vercel → Environment Variables. Both must be present: `api/results.js` returns 500 when either is missing rather than falling open, so a forgotten variable locks the page instead of publishing revenue figures. They are currently set for Production only; a preview deployment will return 500 until they are added to Preview too.
 
 ## Current state note
 

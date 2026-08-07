@@ -4,6 +4,9 @@
   "outputDirectory": "dist",
   "cleanUrls": true,
   "trailingSlash": false,
+  "rewrites": [
+    { "source": "/results", "destination": "/api/results" }
+  ],
   "headers": [
     {
       "source": "/assets/(.*)",
