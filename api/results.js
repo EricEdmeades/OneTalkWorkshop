@@ -93,6 +93,33 @@ function originIsForeign(req) {
   return !ALLOWED_ORIGINS.some((allowed) => new URL(allowed).host === host);
 }
 
+// Form posts must not depend on the platform having parsed the body for us.
+// The first delete attempt failed with the token "missing" even though the
+// form carried it, so the body is parsed here explicitly: whatever Vercel did
+// or did not do, this reads the same bytes the browser sent.
+//
+// Repeated keys matter — every ticked checkbox is another `id`, and collapsing
+// them to the last value would delete one row out of five.
+function parseForm(raw) {
+  const params = new URLSearchParams(raw);
+  const out = {};
+  for (const key of new Set(params.keys())) {
+    const all = params.getAll(key);
+    out[key] = all.length > 1 ? all : all[0];
+  }
+  return out;
+}
+
+async function readBody(req) {
+  if (req.body && typeof req.body === 'object') return req.body;
+  if (typeof req.body === 'string' && req.body) return parseForm(req.body);
+
+  const chunks = [];
+  for await (const chunk of req) chunks.push(chunk);
+  const raw = Buffer.concat(chunks).toString('utf8');
+  return raw ? parseForm(raw) : {};
+}
+
 // Airtable deletes at most 10 records per request.
 const DELETE_BATCH = 10;
 
@@ -396,10 +423,26 @@ export default async function handler(req, res) {
     let deleted = 0;
     let actionError = null;
 
+    const form = isDelete ? await readBody(req) : {};
+
     if (isDelete) {
+      // One diagnostic line, no secrets: shape of what arrived, so a refusal
+      // can be explained from the logs instead of guessed at.
+      console.log(
+        '[results] delete attempt',
+        JSON.stringify({
+          contentType: req.headers['content-type'] || null,
+          platformParsedBody: typeof req.body,
+          formKeys: Object.keys(form),
+          hasToken: Boolean(form.token),
+          origin: req.headers.origin ? 'present' : 'absent',
+          referer: req.headers.referer ? 'present' : 'absent',
+        })
+      );
+
       // Token first: it is the control that actually holds, and it works
       // regardless of which headers the browser chose to send.
-      if (!tokenMatches(req.body?.token, process.env.RESULTS_PASSWORD) || originIsForeign(req)) {
+      if (!tokenMatches(form.token, process.env.RESULTS_PASSWORD) || originIsForeign(req)) {
         // Deliberately terse: a cross-site caller learns nothing beyond "no".
         console.error('[results] rejected a delete that failed the action check');
         return res
@@ -412,7 +455,7 @@ export default async function handler(req, res) {
           );
       }
 
-      const raw = req.body?.id;
+      const raw = form.id;
       const ids = (Array.isArray(raw) ? raw : [raw]).filter(isRecordId);
       if (!ids.length) {
         actionError = 'Nothing was selected, so nothing was deleted.';
