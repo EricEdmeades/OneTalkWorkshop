@@ -36,7 +36,10 @@
 
     <div class="register-cards">
       <div class="date-cards">
-        <div class="price-frame date-card" data-date="august">
+        <!-- Sold out in the markup (lib/seats.js FORCED_SOLD_OUT_DATES), so the
+             buttons are never live even if the JS or /api/seats lookup fails.
+             api/create-checkout.js refuses this date with a 409 regardless. -->
+        <div class="price-frame date-card is-sold-out" data-date="august">
           <div class="price-label"></div>
           <h3 style="margin-top:0;">August 7–9, 2026</h3>
           <p style="opacity:0.75; margin-bottom:0;">10:00 AM–2:00 PM Eastern each day</p>
@@ -46,9 +49,11 @@
             <div class="price-detail"></div>
           </div>
 
+          <p class="seat-notice">Sold out</p>
+
           <div class="date-card-buttons">
-            <button type="button" class="btn-primary" data-plan="full"></button>
-            <button type="button" class="btn-primary" data-plan="plan"></button>
+            <button type="button" class="btn-primary" data-plan="full" disabled>Sold Out</button>
+            <button type="button" class="btn-primary" data-plan="plan" disabled>Sold Out</button>
           </div>
           <p class="lead-error" role="alert" aria-live="polite"></p>
         </div>

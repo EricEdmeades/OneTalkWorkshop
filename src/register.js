@@ -33,6 +33,10 @@ function renderCard(card) {
     : `${price.full}`;
   detailEl.textContent = `or 2 payments of $${price.plan} ($${price.planTotal} total)`;
 
+  // A sold-out card still shows what the workshop cost, but its buttons keep
+  // their "Sold Out" labels rather than being relabelled as live offers.
+  if (card.classList.contains('is-sold-out')) return;
+
   card.querySelectorAll('button[data-plan]').forEach((btn) => {
     const plan = btn.dataset.plan;
     btn.textContent = plan === 'full' ? `Pay in Full — $${price.full}` : `2 Payments of $${price.plan}`;
@@ -65,13 +69,33 @@ function markSoldOut(card) {
   });
 }
 
+// Finished workshops stay listed, greyed and inert, so the page reads as a
+// history of the dates rather than silently losing one. Matches the landing
+// page's .day-card treatment in src/date-cards.js.
+function markPast(card) {
+  const wasSoldOut = card.classList.contains('is-sold-out');
+  card.classList.add('is-past', 'is-sold-out');
+  renderSeatNotice(card, wasSoldOut ? 'Sold out — this workshop has finished' : 'This workshop has finished');
+  card.querySelectorAll('button[data-plan]').forEach((btn) => {
+    btn.disabled = true;
+    btn.textContent = wasSoldOut ? 'Sold Out' : 'Finished';
+  });
+}
+
 async function applySeatState(card) {
   const date = card.dataset.date;
 
-  // Client-side date math first: a finished workshop comes off the page
-  // immediately, without waiting on (or depending on) the network.
+  // Client-side date math first: a finished workshop greys out immediately,
+  // without waiting on (or depending on) the network.
   if (isEventOver(date)) {
-    card.remove();
+    markPast(card);
+    return;
+  }
+
+  // Shipped sold-out in the HTML: the server agrees (FORCED_SOLD_OUT_DATES),
+  // so re-assert it and skip the lookup entirely.
+  if (card.classList.contains('is-sold-out')) {
+    markSoldOut(card);
     return;
   }
 
@@ -85,7 +109,7 @@ async function applySeatState(card) {
   }
 
   if (data.eventOver) {
-    card.remove();
+    markPast(card);
     return;
   }
   if (!data.ticker) return;
@@ -117,7 +141,7 @@ async function startCheckout(date, plan, button) {
     // card in place so the buyer isn't left staring at a live-looking
     // button that will keep failing.
     if (res.status === 410) {
-      card.remove();
+      markPast(card);
       return;
     }
     if (res.status === 409) {

@@ -35,18 +35,33 @@ function insertNotice(card, text) {
   el.textContent = text;
 }
 
-function markSoldOut(card) {
-  card.classList.add('is-sold-out');
-  insertNotice(card, 'Sold out');
+// Swap the link for inert text — a disabled-looking anchor that still
+// navigates is worse than no link at all. Idempotent: a card that shipped
+// sold-out in the HTML already has the badge and is left alone.
+function disableCta(card, label) {
   const cta = card.querySelector('a[data-cta]');
   if (!cta) return;
-  // Swap the link for inert text — a disabled-looking anchor that still
-  // navigates is worse than no link at all.
   const badge = document.createElement('span');
   badge.className = 'btn-primary is-disabled';
   badge.setAttribute('aria-disabled', 'true');
-  badge.textContent = 'Sold Out';
+  badge.textContent = label;
   cta.replaceWith(badge);
+}
+
+function markSoldOut(card) {
+  card.classList.add('is-sold-out');
+  insertNotice(card, 'Sold out');
+  disableCta(card, 'Sold Out');
+}
+
+// A finished workshop stays on the page as a record of what ran — greyed
+// out and clearly past, rather than vanishing and leaving the section
+// looking like the date never existed. Sold-out dates keep saying so.
+function markPast(card) {
+  const wasSoldOut = card.classList.contains('is-sold-out');
+  card.classList.add('is-past');
+  insertNotice(card, wasSoldOut ? 'Sold out — this workshop has finished' : 'This workshop has finished');
+  disableCta(card, wasSoldOut ? 'Sold Out' : 'Finished');
 }
 
 async function applyCardState(card) {
@@ -54,7 +69,14 @@ async function applyCardState(card) {
   if (!date) return;
 
   if (isEventOver(date)) {
-    card.remove();
+    markPast(card);
+    return;
+  }
+
+  // A card that ships sold-out in the HTML needs no lookup — the server
+  // agrees (lib/seats.js FORCED_SOLD_OUT_DATES) and nothing can re-open it.
+  if (card.classList.contains('is-sold-out')) {
+    markSoldOut(card);
     return;
   }
 
@@ -63,7 +85,7 @@ async function applyCardState(card) {
   if (!data) return;
 
   if (data.eventOver) {
-    card.remove();
+    markPast(card);
     return;
   }
   if (!data.ticker) return;

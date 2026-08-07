@@ -5,7 +5,7 @@
 
 import Stripe from 'stripe';
 import { getActiveTier, isValidDate, isValidPlan, isEventOver } from '../lib/pricing.js';
-import { hasSeatTicker, isSoldOut } from '../lib/seats.js';
+import { hasSeatTicker, isSoldOutByCount, isForcedSoldOut } from '../lib/seats.js';
 import { countConsumedSeats } from '../lib/seat-count.js';
 import { sanitizeRef } from '../lib/ref.js';
 
@@ -42,6 +42,14 @@ export default async function handler(req, res) {
     return res.status(410).json({ error: 'This workshop has already taken place.' });
   }
 
+  // A hand-closed date refuses outright, before Stripe: the seat counter
+  // can still show room (it only counts checkouts since countFromUnix), so
+  // this gate is the only thing standing between a stale card and a sale
+  // into a full room.
+  if (isForcedSoldOut(date)) {
+    return res.status(409).json({ error: 'This date is sold out.' });
+  }
+
   // Seat gate, re-derived server-side for the same reason the tier is:
   // the client's view of remaining seats is display only and may be stale.
   // A Stripe failure here must not block a sale, so it is logged and the
@@ -49,7 +57,7 @@ export default async function handler(req, res) {
   if (hasSeatTicker(date)) {
     try {
       const consumed = await countConsumedSeats(stripe, date);
-      if (isSoldOut(date, consumed)) {
+      if (isSoldOutByCount(date, consumed)) {
         return res.status(409).json({ error: 'This date is sold out.' });
       }
     } catch (err) {

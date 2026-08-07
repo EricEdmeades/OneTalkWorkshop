@@ -1571,15 +1571,68 @@
   background: currentColor;
 }
 
-.date-card.is-sold-out .seat-notice {
+.date-card.is-sold-out .seat-notice,
+.day-card.is-sold-out .seat-notice {
   border-color: rgba(120, 120, 120, 0.4);
   background: rgba(120, 120, 120, 0.12);
   color: #6b6b6b;
 }
 
+/* Dark card, so the disabled state is a light-on-dark grey rather than a
+   faded orange — a half-opacity CTA still reads as a live button. */
 .date-card.is-sold-out button[data-plan] {
-  opacity: 0.5;
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+  color: rgba(255, 255, 255, 0.55);
+  box-shadow: none;
+  transform: none;
   cursor: not-allowed;
+}
+
+/* Inert stand-in for a CTA that is sold out or has passed. Keeps the button's
+   shape so the card holds its rhythm, but reads as unavailable: grey, flat,
+   no hover, and not a pointer target. */
+.btn-primary.is-disabled {
+  background: rgba(120, 120, 120, 0.14);
+  border-color: rgba(120, 120, 120, 0.32);
+  color: #6b6b6b;
+  box-shadow: none;
+  transform: none;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* Hero stamp, sold-out variant: same pill, grey instead of amber — a status,
+   not an urgency cue. */
+.hero-seat-stamp.is-sold-out {
+  border-color: rgba(120, 120, 120, 0.4);
+  background: rgba(120, 120, 120, 0.12);
+  color: #6b6b6b;
+}
+
+/* --- Past workshop ------------------------------------------------------
+   A finished date stays on the page as a record of what ran: desaturated so it
+   reads as history at a glance, without hiding the information. Applied by
+   src/date-cards.js / src/register.js once isEventOver() is true.
+
+   The two card types need different treatments. The light .day-card fades
+   toward the page and recedes. The dark .date-card cannot: fading it toward
+   the light section lightens it into a big grey slab with white text on it —
+   louder than the live card and unreadable — so it desaturates and dims its
+   own surface instead, keeping white-on-dark contrast intact. */
+.day-card.is-past {
+  filter: grayscale(1);
+  opacity: 0.6;
+}
+
+.date-card.is-past {
+  filter: grayscale(1) brightness(0.8);
+}
+
+.day-card.is-past:hover,
+.date-card.is-past:hover {
+  transform: none;
+  box-shadow: none;
 }
 
 /* Hero seat stamp — sits under the dates line. Same amber language as the

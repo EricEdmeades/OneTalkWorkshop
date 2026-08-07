@@ -71,10 +71,12 @@
 
         <div class="hero-meta">
           <div class="hero-meta-item" data-date="august"><span class="dot">●</span> Aug 7–9, 2026<!--
-            Stamp filled by src/date-cards.js from /api/seats; stays hidden if
-            the ticker is off, sold out, or the lookup fails. The whole bullet
-            is removed once the workshop is over.
-          --><a class="hero-seat-stamp" data-seat-stamp="august" href="/register.html#august" data-cta="hero_seats_august" hidden></a></div>
+            August is sold out, so the stamp is static and no longer links to
+            registration — there is nothing left to buy. The live seat ticker
+            (src/date-cards.js, [data-seat-stamp]) no longer applies here. The
+            hero lists dates you can still attend, so this bullet is removed
+            once the workshop is over; the Dates section keeps the greyed card.
+          --><span class="hero-seat-stamp is-sold-out">Sold out</span></div>
           <div class="hero-meta-item" data-date="september"><span class="dot">●</span> Sep 18–20, 2026</div>
           <div class="hero-meta-item"><span class="dot">●</span> 10am–2pm Eastern each day</div>
           <div class="hero-meta-item"><span class="dot">●</span> Live online — join from anywhere</div>
@@ -467,13 +469,15 @@
       <h2>Two dates. One workshop. Pick what works for you.</h2>
     </div>
     <div class="date-cards" style="margin-top:40px;">
-      <div class="day-card" data-date="august" style="align-items:center; text-align:center; padding:32px;">
+      <!-- August is sold out (lib/seats.js FORCED_SOLD_OUT_DATES). Rendered
+           sold-out in the markup so it never flashes as available before
+           src/date-cards.js runs; that module greys the card once the
+           workshop has finished and leaves it on the page. -->
+      <div class="day-card is-sold-out" data-date="august" style="align-items:center; text-align:center; padding:32px;">
         <h3 style="margin-top:0;">August 7–9, 2026</h3>
         <p style="opacity:0.75; margin-bottom:24px;">Live online · 10am–2pm Eastern each day</p>
-        <a href="/register.html#august" class="btn-primary" data-cta="dates_august">
-          Reserve My Seat
-          <span class="arrow">→</span>
-        </a>
+        <p class="seat-notice">Sold out</p>
+        <span class="btn-primary is-disabled" aria-disabled="true">Sold Out</span>
       </div>
       <div class="day-card" data-date="september" style="align-items:center; text-align:center; padding:32px;">
         <h3 style="margin-top:0;">September 18–20, 2026</h3>

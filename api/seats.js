@@ -5,7 +5,13 @@
 // that no longer exists.
 
 import Stripe from 'stripe';
-import { hasSeatTicker, getRemainingSeats, isSoldOut, getSeatNoticeText } from '../lib/seats.js';
+import {
+  hasSeatTicker,
+  getRemainingSeats,
+  isSoldOutByCount,
+  isForcedSoldOut,
+  getSeatNoticeText,
+} from '../lib/seats.js';
 import { countConsumedSeats } from '../lib/seat-count.js';
 import { isValidDate, isEventOver } from '../lib/pricing.js';
 
@@ -25,6 +31,13 @@ export default async function handler(req, res) {
   // Event-over is pure date math, so answer it without calling Stripe.
   if (isEventOver(date)) {
     return res.status(200).json({ date, ticker: false, eventOver: true, soldOut: true, remaining: 0, notice: '' });
+  }
+
+  // Hand-closed dates are pure config too — answer before touching Stripe.
+  // ticker: true so the card renders the sold-out state rather than treating
+  // this like a date that simply has no ticker.
+  if (isForcedSoldOut(date)) {
+    return res.status(200).json({ date, ticker: true, eventOver: false, soldOut: true, remaining: 0, notice: getSeatNoticeText(0) });
   }
 
   if (!hasSeatTicker(date)) {
@@ -48,7 +61,7 @@ export default async function handler(req, res) {
       date,
       ticker: true,
       eventOver: false,
-      soldOut: isSoldOut(date, consumed),
+      soldOut: isSoldOutByCount(date, consumed),
       remaining,
       notice: getSeatNoticeText(remaining),
     });
