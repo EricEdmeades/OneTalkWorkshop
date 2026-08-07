@@ -1560,3 +1560,23 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* Hero seat stamp — sits under the dates line. Same amber language as the
+   card notice but quieter, so it reads as a status line, not a banner. */
+.hero-seat-stamp {
+  margin: 0.75rem 0 0;
+  color: #b9770e;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.hero-seat-stamp[hidden] {
+  display: none;
+}
+
+.hero-seat-stamp::before {
+  content: "● ";
+  font-size: 0.7em;
+  vertical-align: middle;
+}

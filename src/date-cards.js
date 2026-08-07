@@ -7,6 +7,21 @@
 
 import { isEventOver } from '../lib/pricing.js';
 
+// One request per date, shared by the cards and the hero stamp.
+const seatRequests = new Map();
+
+function getSeats(date) {
+  if (!seatRequests.has(date)) {
+    seatRequests.set(
+      date,
+      fetch(`/api/seats?date=${encodeURIComponent(date)}`)
+        .then((res) => (res.ok ? res.json() : null))
+        .catch(() => null),
+    );
+  }
+  return seatRequests.get(date);
+}
+
 function insertNotice(card, text) {
   if (!text) return;
   let el = card.querySelector('.seat-notice');
@@ -43,14 +58,9 @@ async function applyCardState(card) {
     return;
   }
 
-  let data;
-  try {
-    const res = await fetch(`/api/seats?date=${encodeURIComponent(date)}`);
-    if (!res.ok) return;
-    data = await res.json();
-  } catch (_) {
-    return; // Scarcity is an enhancement; never break the page over it.
-  }
+  // Scarcity is an enhancement; a failed lookup leaves the card untouched.
+  const data = await getSeats(date);
+  if (!data) return;
 
   if (data.eventOver) {
     card.remove();
@@ -64,6 +74,23 @@ async function applyCardState(card) {
   insertNotice(card, data.notice);
 }
 
+// Hero stamp: sits under the dates line. Stays hidden unless there is a
+// live count to show — an empty or stale "seats left" line in the hero is
+// worse than none at all, so sold-out and event-over both leave it off
+// (the date cards below carry those states).
+async function applyHeroStamp(el) {
+  const date = el.dataset.seatStamp;
+  if (!date || isEventOver(date)) return;
+
+  const data = await getSeats(date);
+  if (!data || !data.ticker || data.eventOver || data.soldOut) return;
+  if (!Number.isFinite(data.remaining) || data.remaining <= 0) return;
+
+  el.textContent = `${data.notice} for August`;
+  el.hidden = false;
+}
+
 export function initDateCards() {
   document.querySelectorAll('.day-card[data-date]').forEach(applyCardState);
+  document.querySelectorAll('[data-seat-stamp]').forEach(applyHeroStamp);
 }
