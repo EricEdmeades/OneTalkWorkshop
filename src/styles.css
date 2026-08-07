@@ -1564,19 +1564,20 @@
 /* Hero seat stamp — sits under the dates line. Same amber language as the
    card notice but quieter, so it reads as a status line, not a banner. */
 .hero-seat-stamp {
-  margin: 0.75rem 0 0;
+  display: inline-block;
+  margin-left: 0.6em;
+  padding: 0.15em 0.6em;
+  border: 1px solid rgba(214, 138, 22, 0.45);
+  border-radius: 999px;
+  background: rgba(214, 138, 22, 0.1);
   color: #b9770e;
-  font-size: 0.8125rem;
-  font-weight: 600;
+  font-size: 0.75rem;
+  font-weight: 700;
   letter-spacing: 0.02em;
+  white-space: nowrap;
+  vertical-align: middle;
 }
 
 .hero-seat-stamp[hidden] {
   display: none;
-}
-
-.hero-seat-stamp::before {
-  content: "● ";
-  font-size: 0.7em;
-  vertical-align: middle;
 }

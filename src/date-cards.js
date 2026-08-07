@@ -74,23 +74,43 @@ async function applyCardState(card) {
   insertNotice(card, data.notice);
 }
 
-// Hero stamp: sits under the dates line. Stays hidden unless there is a
-// live count to show — an empty or stale "seats left" line in the hero is
-// worse than none at all, so sold-out and event-over both leave it off
-// (the date cards below carry those states).
+// Hero stamp: rides inline on its own date's bullet, so the count sits
+// next to the date it applies to. Stays hidden unless there is a live
+// count to show — a stale or empty "seats left" in the hero is worse than
+// none at all, so sold-out leaves it off (the date cards carry that
+// state). Once the workshop is over the whole bullet goes.
 async function applyHeroStamp(el) {
   const date = el.dataset.seatStamp;
-  if (!date || isEventOver(date)) return;
+  if (!date) return;
+
+  const bullet = el.closest('.hero-meta-item');
+  if (isEventOver(date)) {
+    if (bullet) bullet.remove();
+    return;
+  }
 
   const data = await getSeats(date);
-  if (!data || !data.ticker || data.eventOver || data.soldOut) return;
+  if (!data) return;
+  if (data.eventOver) {
+    if (bullet) bullet.remove();
+    return;
+  }
+  if (!data.ticker || data.soldOut) return;
   if (!Number.isFinite(data.remaining) || data.remaining <= 0) return;
 
-  el.textContent = `${data.notice} for August`;
+  el.textContent = data.notice;
   el.hidden = false;
 }
 
+// A finished workshop drops off the hero list too, stamp or not.
+function pruneFinishedHeroBullets() {
+  document.querySelectorAll('.hero-meta-item[data-date]').forEach((item) => {
+    if (isEventOver(item.dataset.date)) item.remove();
+  });
+}
+
 export function initDateCards() {
+  pruneFinishedHeroBullets();
   document.querySelectorAll('.day-card[data-date]').forEach(applyCardState);
   document.querySelectorAll('[data-seat-stamp]').forEach(applyHeroStamp);
 }
