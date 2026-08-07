@@ -163,10 +163,6 @@
   /* One flex item, so the separator sits inline instead of inheriting the
      flag's 12px gap between the pulsing dot and the text. */
   .hero-flag .flag-text { display: block; }
-  .hero-flag .flag-sep {
-    opacity: 0.45;
-    margin: 0 0.15em;
-  }
   .hero-flag::before {
     content: "";
     flex: 0 0 auto;
@@ -176,10 +172,10 @@
     animation: pulse 2s infinite;
   }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
-  /* Below ~400px the full flag would wrap to two lines. Drop the "Live Online"
-     tail — the hero-meta bullets below already carry it — and keep the name
-     on one line. */
-  @media (max-width: 400px) {
+  /* Below ~430px the full flag would wrap to two lines. Drop the attribution
+     tail — the hero sub-headline names Eric in the next breath — and keep the
+     workshop name on one line. */
+  @media (max-width: 430px) {
     .hero-flag .flag-tail { display: none; }
   }
 
