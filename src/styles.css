@@ -1382,7 +1382,18 @@
     margin: 0 auto;
     padding: 0 28px;
   }
-  .foot-logo img { height: 42px; width: auto; opacity: 0.95; }
+  /* The footer logo is a link to speakernation.com. Reset the inherited
+     `footer a { opacity: 0.7 }` — that rule is for the text links and would
+     dim the logo — and make the anchor a block so no baseline gap opens up
+     beneath the image. */
+  .foot-logo a { display: inline-block; opacity: 1; }
+  .foot-logo img {
+    display: block;
+    height: 42px; width: auto;
+    opacity: 0.95;
+    transition: opacity 150ms ease;
+  }
+  .foot-logo a:hover img { opacity: 1; }
   .foot-links { display: flex; gap: 28px; font-size: 0.82rem; letter-spacing: 0.04em; }
   footer a { color: var(--paper); opacity: 0.7; text-decoration: none; font-weight: 500; }
   footer a:hover { opacity: 1; }
