@@ -30,6 +30,7 @@ import { renderRegistrationsPage } from '../lib/registrations-render.js';
 import { renderSurveysPage } from '../lib/feedback-render.js';
 import { renderDashboard } from '../lib/dashboard-render.js';
 import { renderSubmissionsPage, isRecordId } from '../lib/submissions-render.js';
+import { actionToken, tokenMatches } from '../lib/admin-token.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -65,26 +66,31 @@ const VIEWS = {
 
 // Deletes are POSTed from the submissions table. Basic auth credentials are
 // attached by the browser automatically, including on a cross-site form post,
-// so the Origin check is what actually stops another site from deleting an
-// operator's data while they happen to be logged in.
+// so being logged in is not what makes a delete safe — the hidden token is
+// (see lib/admin-token.js).
+//
+// The Origin header is an extra layer, checked only when the browser actually
+// sends one. Requiring it broke real deletes: this route sets
+// Referrer-Policy: no-referrer, and Safari omits Origin on same-origin form
+// posts, so a genuine click arrived with neither header.
 const ALLOWED_ORIGINS = [
   'https://onetalkworkshop.com',
   'https://www.onetalkworkshop.com',
   'https://onetalk.ericedmeades.com',
 ];
 
-function sameOrigin(req) {
+function originIsForeign(req) {
   const raw = req.headers.origin || req.headers.referer || '';
-  if (!raw) return false;
+  if (!raw) return false; // Absent proves nothing either way; the token decides.
   let host;
   try {
     host = new URL(raw).host;
   } catch (_) {
-    return false;
+    return true;
   }
-  if (host.startsWith('localhost') || host.startsWith('127.0.0.1')) return true;
-  if (host.endsWith('.vercel.app')) return true;
-  return ALLOWED_ORIGINS.some((allowed) => new URL(allowed).host === host);
+  if (host.startsWith('localhost') || host.startsWith('127.0.0.1')) return false;
+  if (host.endsWith('.vercel.app')) return false;
+  return !ALLOWED_ORIGINS.some((allowed) => new URL(allowed).host === host);
 }
 
 // Airtable deletes at most 10 records per request.
@@ -391,12 +397,19 @@ export default async function handler(req, res) {
     let actionError = null;
 
     if (isDelete) {
-      if (!sameOrigin(req)) {
+      // Token first: it is the control that actually holds, and it works
+      // regardless of which headers the browser chose to send.
+      if (!tokenMatches(req.body?.token, process.env.RESULTS_PASSWORD) || originIsForeign(req)) {
         // Deliberately terse: a cross-site caller learns nothing beyond "no".
-        console.error('[results] rejected a cross-origin delete');
+        console.error('[results] rejected a delete that failed the action check');
         return res
           .status(403)
-          .send(renderMessage('Refused', 'That request did not come from this site.'));
+          .send(
+            renderMessage(
+              'Refused',
+              'That delete could not be verified as coming from this page. Reload <code>/results/submissions</code> and try again.'
+            )
+          );
       }
 
       const raw = req.body?.id;
@@ -432,7 +445,14 @@ export default async function handler(req, res) {
 
     return res
       .status(200)
-      .send(renderSubmissionsPage(rows, { fetchedAt: Date.now(), deleted, error: actionError }));
+      .send(
+        renderSubmissionsPage(rows, {
+          fetchedAt: Date.now(),
+          deleted,
+          error: actionError,
+          token: actionToken(process.env.RESULTS_PASSWORD),
+        })
+      );
   }
 
   // Every other view is a GET-only page.
