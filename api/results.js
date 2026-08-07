@@ -26,6 +26,15 @@ const REALM = 'One Talk Workshop results';
 // hitting it is surfaced on the page rather than silently truncating.
 const MAX_SESSIONS = 25000;
 
+// The Stripe walk is ~25 sequential paged requests (cursor pagination cannot
+// be parallelised), which measured ~35s against the live account. Cache the
+// finished report in module scope: Fluid Compute reuses instances, so repeat
+// views inside the window are instant. A cold instance still pays the full
+// walk — this trades staleness for speed, never correctness, and the page
+// always states how old the figures are. `?refresh=1` forces a fresh read.
+const CACHE_TTL_MS = 5 * 60 * 1000;
+let reportCache = null; // { at: number, report, truncated }
+
 // Best-effort brute-force damper. Vercel Fluid Compute reuses instances, so
 // this catches repeated guessing against a warm instance — it is NOT a
 // distributed limiter and does not pretend to be. The real protection is that
@@ -176,12 +185,17 @@ function renderEvent(event) {
     </section>`;
 }
 
-function renderPage(report, { truncated }) {
-  const generated = new Date().toLocaleString('en-US', {
+function renderPage(report, { truncated, fetchedAt }) {
+  const generated = new Date(fetchedAt).toLocaleString('en-US', {
     timeZone: 'America/New_York',
     dateStyle: 'medium',
     timeStyle: 'short',
   });
+  const ageMs = Date.now() - fetchedAt;
+  // Anything under a few seconds is this request's own Stripe read, not a
+  // cache hit — call it live rather than "0 minutes old".
+  const freshness =
+    ageMs < 5000 ? 'live from Stripe' : `read from Stripe ${Math.round(ageMs / 60000)} min ago`;
 
   return `<!DOCTYPE html>
 <html lang="en">
@@ -212,6 +226,7 @@ function renderPage(report, { truncated }) {
   }
   h1 { font-size: clamp(1.8rem, 4vw, 2.6rem); margin: 0 0 6px; letter-spacing: -0.02em; }
   .generated { color: var(--muted); font-size: 0.85rem; margin: 0 0 40px; }
+  .generated a { color: var(--wine); font-weight: 600; }
   .totals { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 48px; }
   .card {
     flex: 1 1 200px; padding: 18px 20px;
@@ -258,7 +273,7 @@ function renderPage(report, { truncated }) {
 <div class="wrap">
   <span class="eyebrow">The One Talk Workshop</span>
   <h1>Registration Report</h1>
-  <p class="generated">Generated ${escapeHtml(generated)} Eastern · live from Stripe</p>
+  <p class="generated">${escapeHtml(generated)} Eastern · ${escapeHtml(freshness)} · <a href="/results?refresh=1">refresh</a></p>
 
   ${truncated ? `<p class="warn">Session scan hit the ${MAX_SESSIONS.toLocaleString('en-US')} record cap — figures below may be incomplete.</p>` : ''}
 
@@ -297,15 +312,20 @@ function renderPage(report, { truncated }) {
 }
 
 export default async function handler(req, res) {
-  if (req.method !== 'GET') {
-    res.setHeader('Allow', 'GET');
-    return res.status(405).send('Method not allowed');
-  }
-
-  // Never let a CDN or browser cache an authenticated revenue page.
+  // Set the protective headers FIRST, so every exit path below carries them —
+  // including 405 and 401, which would otherwise fall back to Vercel's default
+  // `public, max-age=0, must-revalidate` on an authenticated route.
   res.setHeader('Cache-Control', 'private, no-store, max-age=0');
   res.setHeader('X-Robots-Tag', 'noindex, nofollow');
   res.setHeader('Referrer-Policy', 'no-referrer');
+
+  // HEAD is a valid way to probe this URL (curl -I, uptime checks). Treat it
+  // as GET and let the platform drop the body, rather than 405-ing a method
+  // the resource genuinely supports.
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    res.setHeader('Allow', 'GET, HEAD');
+    return res.status(405).send('Method not allowed');
+  }
 
   const key = clientKey(req);
   if (isThrottled(key)) {
@@ -333,17 +353,27 @@ export default async function handler(req, res) {
     return res.status(500).send('This report is not configured.');
   }
 
-  try {
-    // Codes and sessions are independent lookups — fetch them concurrently.
-    const [promoNames, { sessions, truncated }] = await Promise.all([
-      loadCodeNames(),
-      loadSessions(),
-    ]);
+  const forceRefresh = req.query?.refresh === '1';
+  const cached =
+    !forceRefresh && reportCache && Date.now() - reportCache.at < CACHE_TTL_MS ? reportCache : null;
 
-    const report = buildReport(sessions, promoNames);
+  try {
+    let entry = cached;
+
+    if (!entry) {
+      // Codes and sessions are independent lookups — fetch them concurrently.
+      const [promoNames, { sessions, truncated }] = await Promise.all([
+        loadCodeNames(),
+        loadSessions(),
+      ]);
+      entry = { at: Date.now(), report: buildReport(sessions, promoNames), truncated };
+      reportCache = entry;
+    }
 
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    return res.status(200).send(renderPage(report, { truncated }));
+    return res
+      .status(200)
+      .send(renderPage(entry.report, { truncated: entry.truncated, fetchedAt: entry.at }));
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     // Unlike the public endpoints, this one fails loudly: a silent empty
