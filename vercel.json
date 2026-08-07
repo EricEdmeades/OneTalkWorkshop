@@ -5,7 +5,8 @@
   "cleanUrls": true,
   "trailingSlash": false,
   "rewrites": [
-    { "source": "/results", "destination": "/api/results" }
+    { "source": "/results", "destination": "/api/results" },
+    { "source": "/results/:view", "destination": "/api/results?view=:view" }
   ],
   "headers": [
     {
