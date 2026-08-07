@@ -1581,3 +1581,22 @@
 .hero-seat-stamp[hidden] {
   display: none;
 }
+
+/* It's a link to the August registration card — make that legible on
+   hover/focus without turning it into a second CTA competing with the
+   primary button. */
+a.hero-seat-stamp {
+  text-decoration: none;
+  transition: background-color 150ms ease, border-color 150ms ease;
+}
+
+a.hero-seat-stamp:hover,
+a.hero-seat-stamp:focus-visible {
+  background: rgba(214, 138, 22, 0.2);
+  border-color: rgba(214, 138, 22, 0.75);
+}
+
+a.hero-seat-stamp:focus-visible {
+  outline: 2px solid #b9770e;
+  outline-offset: 2px;
+}
