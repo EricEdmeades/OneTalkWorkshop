@@ -3,6 +3,7 @@ import { wrapHeadingWords } from './word-hover.js';
 import { initLeadMagnetForm } from './form.js';
 import { initTestimonialCarousel } from './testimonials.js';
 import { initAffiliateRef } from './affiliate-ref.js';
+import { initDateCards } from './date-cards.js';
 
 function boot() {
   wrapHeadingWords();
@@ -10,6 +11,7 @@ function boot() {
   initAffiliateRef();
   initLeadMagnetForm();
   initTestimonialCarousel();
+  initDateCards();
 }
 
 if (document.readyState === 'loading') {

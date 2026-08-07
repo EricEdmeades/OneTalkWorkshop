@@ -8,7 +8,7 @@
 // ?success=1 / ?canceled=1 return states from Stripe.
 // =============================================================================
 
-import { getActiveTier, PRICES } from '../lib/pricing.js';
+import { getActiveTier, PRICES, isEventOver } from '../lib/pricing.js';
 import { initAnalytics, trackCtaClick } from './analytics.js';
 import { wrapHeadingWords } from './word-hover.js';
 import { initAffiliateRef, getStoredRef } from './affiliate-ref.js';
@@ -39,6 +39,63 @@ function renderCard(card) {
   });
 }
 
+// --- Seat scarcity -----------------------------------------------------
+// The notice is display only. api/create-checkout.js re-derives sold-out
+// state on every POST, so a stale tab can never buy a seat that is gone.
+
+function renderSeatNotice(card, text) {
+  if (!text) return;
+  let el = card.querySelector('.seat-notice');
+  if (!el) {
+    el = document.createElement('p');
+    el.className = 'seat-notice';
+    const anchor = card.querySelector('.price-detail');
+    if (anchor) anchor.insertAdjacentElement('afterend', el);
+    else card.prepend(el);
+  }
+  el.textContent = text;
+}
+
+function markSoldOut(card) {
+  card.classList.add('is-sold-out');
+  renderSeatNotice(card, 'Sold out');
+  card.querySelectorAll('button[data-plan]').forEach((btn) => {
+    btn.disabled = true;
+    btn.textContent = 'Sold Out';
+  });
+}
+
+async function applySeatState(card) {
+  const date = card.dataset.date;
+
+  // Client-side date math first: a finished workshop comes off the page
+  // immediately, without waiting on (or depending on) the network.
+  if (isEventOver(date)) {
+    card.remove();
+    return;
+  }
+
+  let data;
+  try {
+    const res = await fetch(`/api/seats?date=${encodeURIComponent(date)}`);
+    if (!res.ok) return;
+    data = await res.json();
+  } catch (_) {
+    return; // Ticker is an enhancement — never block the page on it.
+  }
+
+  if (data.eventOver) {
+    card.remove();
+    return;
+  }
+  if (!data.ticker) return;
+  if (data.soldOut) {
+    markSoldOut(card);
+    return;
+  }
+  renderSeatNotice(card, data.notice);
+}
+
 async function startCheckout(date, plan, button) {
   const card = button.closest('.date-card');
   const errorEl = card.querySelector('.lead-error');
@@ -55,6 +112,18 @@ async function startCheckout(date, plan, button) {
 
     let data = {};
     try { data = await res.json(); } catch (_) { /* ignore */ }
+
+    // The server is authoritative on seats: if it refuses, correct the
+    // card in place so the buyer isn't left staring at a live-looking
+    // button that will keep failing.
+    if (res.status === 410) {
+      card.remove();
+      return;
+    }
+    if (res.status === 409) {
+      markSoldOut(card);
+      return;
+    }
 
     if (!res.ok || !data.url) {
       throw new Error(data.error || 'Could not start checkout. Please try again.');
@@ -130,6 +199,7 @@ function init() {
   }
 
   document.querySelectorAll('.date-card').forEach(renderCard);
+  document.querySelectorAll('.date-card').forEach(applySeatState);
   document.querySelectorAll('.date-card button[data-plan]').forEach((btn) => {
     btn.addEventListener('click', () => {
       const card = btn.closest('.date-card');
