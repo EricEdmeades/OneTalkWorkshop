@@ -82,6 +82,14 @@ const ALLOWED_ORIGINS = [
 function originIsForeign(req) {
   const raw = req.headers.origin || req.headers.referer || '';
   if (!raw) return false; // Absent proves nothing either way; the token decides.
+
+  // Chrome derives Origin on a form navigation from the referrer policy, and
+  // this route sends `Referrer-Policy: no-referrer` — so an ordinary click on
+  // our own page arrives as the literal `Origin: null`. It carries no host to
+  // check, exactly like an absent header, so the token decides. Treating it as
+  // hostile is what refused three real deletes.
+  if (raw === 'null') return false;
+
   let host;
   try {
     host = new URL(raw).host;
