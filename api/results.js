@@ -16,6 +16,7 @@
 import crypto from 'node:crypto';
 import Stripe from 'stripe';
 import { buildReport, formatMoney, formatPct } from '../lib/results.js';
+import { DAY_LABELS, SESSION_OPTIONS, buildFeedbackReport } from '../lib/survey.js';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
 
@@ -134,6 +135,63 @@ async function loadSessions() {
   return { sessions, truncated };
 }
 
+// --- Feedback (the /survey answers) -------------------------------------
+//
+// Read live on every view: the survey table is small, and stale feedback on
+// the evening of day 1 is the one thing this page must not show. A failure
+// here degrades to a note on the page — it must never take down the
+// registration figures alongside it.
+
+const AIRTABLE_API = 'https://api.airtable.com/v0';
+const FEEDBACK_BASE_ID = 'apphi4tks9sL7aMoy';
+const FEEDBACK_TABLE_ID = 'tblIaTmblcwfvDGrY';
+
+const DAY_FROM_LABEL = Object.fromEntries(
+  Object.entries(DAY_LABELS).map(([day, label]) => [label, day]),
+);
+
+async function loadFeedback() {
+  const pat = process.env.AIRTABLE_PAT;
+  if (!pat) return { configured: false, responses: [] };
+
+  const responses = [];
+  let offset;
+
+  do {
+    const url = new URL(`${AIRTABLE_API}/${FEEDBACK_BASE_ID}/${FEEDBACK_TABLE_ID}`);
+    url.searchParams.set('pageSize', '100');
+    if (offset) url.searchParams.set('offset', offset);
+
+    const res = await fetch(url, { headers: { Authorization: `Bearer ${pat}` } });
+    if (!res.ok) throw new Error(`Airtable ${res.status}`);
+    const page = await res.json();
+
+    for (const record of page.records || []) {
+      const f = record.fields || {};
+      let answers = {};
+      try {
+        answers = f['Answers JSON'] ? JSON.parse(f['Answers JSON']) : {};
+      } catch (_) {
+        answers = {}; // A malformed blob loses its detail, not the whole response.
+      }
+      responses.push({
+        day: DAY_FROM_LABEL[f.Day] || null,
+        respondent: f.Respondent || null,
+        nps: typeof f.NPS === 'number' ? f.NPS : null,
+        dayRating: typeof f['Day Rating'] === 'number' ? f['Day Rating'] : null,
+        bestThing: f['Best Thing'] || '',
+        improve: f.Improve || '',
+        anythingElse: f['Anything Else'] || '',
+        answers,
+      });
+    }
+
+    offset = page.offset;
+  } while (offset);
+
+  return { configured: true, responses };
+}
+
 const escapeHtml = (value) =>
   String(value)
     .replace(/&/g, '&amp;')
@@ -185,6 +243,133 @@ function renderEvent(event) {
     </section>`;
 }
 
+const formatNps = (score) => (score === null ? '—' : score > 0 ? `+${score}` : String(score));
+
+function renderVerbatims(title, items) {
+  if (!items.length) return '';
+  return `
+    <div class="verbatims">
+      <h4>${escapeHtml(title)}</h4>
+      <ul>${items.map((text) => `<li>${escapeHtml(text)}</li>`).join('')}</ul>
+    </div>`;
+}
+
+function renderFeedbackDay(day) {
+  if (!day.responses) {
+    return `
+      <section class="event">
+        <h2>${escapeHtml(day.label)}</h2>
+        <p class="empty-day">No feedback yet.</p>
+      </section>`;
+  }
+
+  const sessionRows = day.sessions
+    .map((session) => {
+      const cells = session.distribution
+        .map((entry) => `<td class="num">${entry.count || '—'}</td>`)
+        .join('');
+      return `<tr><td>${escapeHtml(session.label)}</td>${cells}</tr>`;
+    })
+    .join('');
+
+  return `
+    <section class="event">
+      <h2>${escapeHtml(day.label)}</h2>
+      <div class="totals">
+        <div class="card">
+          <div class="label">Responses</div>
+          <div class="value">${day.respondents.toLocaleString('en-US')}</div>
+        </div>
+        <div class="card">
+          <div class="label">Avg rating</div>
+          <div class="value">${day.dayRating === null ? '—' : `${day.dayRating}/10`}</div>
+        </div>
+        <div class="card">
+          <div class="label">NPS</div>
+          <div class="value">${formatNps(day.nps.score)}</div>
+        </div>
+      </div>
+      <p class="nps-bands">
+        ${day.nps.promoters} promoter${day.nps.promoters === 1 ? '' : 's'} ·
+        ${day.nps.passives} passive${day.nps.passives === 1 ? '' : 's'} ·
+        ${day.nps.detractors} detractor${day.nps.detractors === 1 ? '' : 's'}
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th scope="col">Session</th>
+            ${SESSION_OPTIONS.map((option) => `<th scope="col" class="num">${escapeHtml(option)}</th>`).join('')}
+          </tr>
+        </thead>
+        <tbody>${sessionRows}</tbody>
+      </table>
+      ${renderVerbatims('Most valuable', day.bestThing)}
+      ${renderVerbatims('What to improve', day.improve)}
+      ${renderVerbatims('Anything else', day.anythingElse)}
+    </section>`;
+}
+
+function renderFeedback(feedback) {
+  if (feedback.error) {
+    return `<section class="event"><h2>Feedback</h2>
+      <p class="warn">Could not read the feedback table just now (${escapeHtml(feedback.error)}). The registration figures above are unaffected.</p>
+    </section>`;
+  }
+  if (!feedback.configured) {
+    return `<section class="event"><h2>Feedback</h2>
+      <p class="warn">Feedback storage is not configured. Add <code>AIRTABLE_PAT</code> in Vercel &rarr; Environment Variables.</p>
+    </section>`;
+  }
+
+  const report = feedback.report;
+  const basisLabel = report.headlineNps.basis ? DAY_LABELS[report.headlineNps.basis] : null;
+
+  return `
+  <h1 class="section-head">Workshop Feedback</h1>
+  <div class="totals">
+    <div class="card highlight">
+      <div class="label">Workshop NPS${basisLabel ? ` (${escapeHtml(basisLabel)})` : ''}</div>
+      <div class="value">${formatNps(report.headlineNps.score)}</div>
+    </div>
+    <div class="card">
+      <div class="label">Attendees responding</div>
+      <div class="value">${report.respondents.toLocaleString('en-US')}</div>
+    </div>
+    <div class="card">
+      <div class="label">Responses total</div>
+      <div class="value">${report.responses.toLocaleString('en-US')}</div>
+    </div>
+    ${
+      report.confidence === null
+        ? ''
+        : `<div class="card">
+             <div class="label">Avg confidence (Day 3)</div>
+             <div class="value">${report.confidence}/10</div>
+           </div>`
+    }
+  </div>
+
+  ${report.days.map(renderFeedbackDay).join('')}
+  ${
+    report.testimonials.length
+      ? `<section class="event"><h2>Testimonial-ready quotes</h2>
+           ${renderVerbatims('Day 3 — how they would describe it', report.testimonials)}
+         </section>`
+      : ''
+  }
+
+  <p class="note">
+    <strong>Workshop NPS</strong> is the score from the latest day with answers — normally
+    Day 3, once attendees have seen the whole thing. It is deliberately not an average of
+    the three days, which would count the same attendee up to three times. Promoters score
+    9-10, detractors 0-6, and the score is the percentage gap between them.
+  </p>
+  <p class="note">
+    Attendees are identified by a one-way hash of their email, so the same person's three
+    days join up without this page ever holding an address.
+  </p>`;
+}
+
 // Shared chrome so an error state is a real page, not a bare string. A 401
 // that renders as one line of unstyled text reads as "the site is broken"
 // when the browser does not surface its password prompt.
@@ -212,7 +397,7 @@ function renderMessage(title, message) {
   );
 }
 
-function renderPage(report, { truncated, fetchedAt }) {
+function renderPage(report, { truncated, fetchedAt, feedback }) {
   const generated = new Date(fetchedAt).toLocaleString('en-US', {
     timeZone: 'America/New_York',
     dateStyle: 'medium',
@@ -261,7 +446,9 @@ function renderPage(report, { truncated, fetchedAt }) {
   <p class="note">
     Aggregate figures only. No attendee names, emails, customer records, or payment
     identifiers are read or displayed.
-  </p>`
+  </p>
+
+  ${renderFeedback(feedback)}`
   );
 }
 
@@ -331,9 +518,29 @@ const PAGE_CSS = `
     background: #fff; border: 1px solid var(--rule); border-radius: 3px;
     padding: 2px 7px; font-size: 0.92em;
   }
+  .section-head {
+    margin: 72px 0 20px; padding-top: 34px;
+    border-top: 3px solid var(--black); font-size: clamp(1.5rem, 3vw, 2.1rem);
+  }
+  .card.highlight { border-color: var(--wine); border-width: 2px; }
+  .card.highlight .value { color: var(--wine); }
+  .nps-bands { margin: -34px 0 22px; color: var(--muted); font-size: 0.82rem; }
+  .empty-day { color: var(--muted); font-style: italic; margin: 0; }
+  .verbatims { margin-top: 22px; }
+  .verbatims h4 {
+    font-size: 0.68rem; font-weight: 700; letter-spacing: 0.1em;
+    text-transform: uppercase; color: var(--muted); margin: 0 0 10px;
+  }
+  .verbatims ul { margin: 0; padding: 0; list-style: none; }
+  .verbatims li {
+    padding: 11px 14px; margin-bottom: 8px;
+    background: #fff; border-left: 3px solid var(--rule); border-radius: 0 3px 3px 0;
+    font-size: 0.9rem; line-height: 1.55; white-space: pre-wrap;
+  }
   @media (max-width: 560px) {
     body { padding: 32px 16px 60px; }
     th, td { padding: 9px 7px; font-size: 0.82rem; }
+    .nps-bands { margin-top: -28px; }
   }
 `;
 
@@ -422,10 +629,31 @@ export default async function handler(req, res) {
       reportCache = entry;
     }
 
+    // Feedback is read live and separately: it is cheap, it must not be stale
+    // on the evening of a workshop day, and a failure here must not cost the
+    // operator the registration figures.
+    let feedback;
+    try {
+      const loaded = await loadFeedback();
+      feedback = loaded.configured
+        ? { configured: true, report: buildFeedbackReport(loaded.responses) }
+        : { configured: false };
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error('[results] feedback', message);
+      feedback = { configured: true, error: message };
+    }
+
     res.setHeader('Content-Type', 'text/html; charset=utf-8');
     return res
       .status(200)
-      .send(renderPage(entry.report, { truncated: entry.truncated, fetchedAt: entry.at }));
+      .send(
+        renderPage(entry.report, {
+          truncated: entry.truncated,
+          fetchedAt: entry.at,
+          feedback,
+        })
+      );
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     // Unlike the public endpoints, this one fails loudly: a silent empty
