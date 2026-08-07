@@ -185,6 +185,33 @@ function renderEvent(event) {
     </section>`;
 }
 
+// Shared chrome so an error state is a real page, not a bare string. A 401
+// that renders as one line of unstyled text reads as "the site is broken"
+// when the browser does not surface its password prompt.
+function renderShell(title, inner) {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>${escapeHtml(title)} — The One Talk Workshop</title>
+<link rel="icon" type="image/png" href="/assets/favicon-512.png">
+<style>${PAGE_CSS}</style>
+</head>
+<body><div class="wrap">${inner}</div></body>
+</html>`;
+}
+
+function renderMessage(title, message) {
+  return renderShell(
+    title,
+    `<span class="eyebrow">The One Talk Workshop</span>
+     <h1>${escapeHtml(title)}</h1>
+     <p class="msg">${message}</p>`
+  );
+}
+
 function renderPage(report, { truncated, fetchedAt }) {
   const generated = new Date(fetchedAt).toLocaleString('en-US', {
     timeZone: 'America/New_York',
@@ -197,15 +224,48 @@ function renderPage(report, { truncated, fetchedAt }) {
   const freshness =
     ageMs < 5000 ? 'live from Stripe' : `read from Stripe ${Math.round(ageMs / 60000)} min ago`;
 
-  return `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta name="robots" content="noindex, nofollow">
-<title>Registration Report — The One Talk Workshop</title>
-<link rel="icon" type="image/png" href="/assets/favicon-512.png">
-<style>
+  return renderShell(
+    'Registration Report',
+    `
+  <span class="eyebrow">The One Talk Workshop</span>
+  <h1>Registration Report</h1>
+  <p class="generated">${escapeHtml(generated)} Eastern · ${escapeHtml(freshness)} · <a href="/results?refresh=1">refresh</a></p>
+
+  ${truncated ? `<p class="warn">Session scan hit the ${MAX_SESSIONS.toLocaleString('en-US')} record cap — figures below may be incomplete.</p>` : ''}
+
+  <div class="totals">
+    <div class="card">
+      <div class="label">Registrations</div>
+      <div class="value">${report.totals.registrations.toLocaleString('en-US')}</div>
+    </div>
+    <div class="card">
+      <div class="label">Collected</div>
+      <div class="value">${formatMoney(report.totals.collectedCents)}</div>
+    </div>
+    <div class="card">
+      <div class="label">Contracted</div>
+      <div class="value">${formatMoney(report.totals.contractedCents)}</div>
+    </div>
+  </div>
+
+  ${report.events.map(renderEvent).join('')}
+
+  <p class="note">
+    <strong>Collected</strong> is what Stripe has actually taken.
+    <strong>Contracted</strong> counts each payment-plan registration at its full
+    two-installment value, so the gap between the columns is the installments still
+    scheduled to bill. A 100%-off comp counts as a registration with zero revenue —
+    it occupies a seat in the room like any other. <strong>% of revenue</strong> is
+    each code's share of that event's contracted total.
+  </p>
+  <p class="note">
+    Aggregate figures only. No attendee names, emails, customer records, or payment
+    identifiers are read or displayed.
+  </p>`
+  );
+}
+
+const PAGE_CSS = `
   :root {
     --paper: #FAF7F2; --black: #141210; --charcoal: #3A342E;
     --wine: #E26320; --rule: #E2DACF; --muted: #7A7168;
@@ -263,53 +323,19 @@ function renderPage(report, { truncated, fetchedAt }) {
     background: #FDF0E7; border: 1px solid var(--wine);
     color: var(--charcoal); font-size: 0.85rem;
   }
+  .msg {
+    font-size: 1rem; line-height: 1.7; color: var(--charcoal);
+    max-width: 56ch; margin: 0 0 18px;
+  }
+  .msg code {
+    background: #fff; border: 1px solid var(--rule); border-radius: 3px;
+    padding: 2px 7px; font-size: 0.92em;
+  }
   @media (max-width: 560px) {
     body { padding: 32px 16px 60px; }
     th, td { padding: 9px 7px; font-size: 0.82rem; }
   }
-</style>
-</head>
-<body>
-<div class="wrap">
-  <span class="eyebrow">The One Talk Workshop</span>
-  <h1>Registration Report</h1>
-  <p class="generated">${escapeHtml(generated)} Eastern · ${escapeHtml(freshness)} · <a href="/results?refresh=1">refresh</a></p>
-
-  ${truncated ? `<p class="warn">Session scan hit the ${MAX_SESSIONS.toLocaleString('en-US')} record cap — figures below may be incomplete.</p>` : ''}
-
-  <div class="totals">
-    <div class="card">
-      <div class="label">Registrations</div>
-      <div class="value">${report.totals.registrations.toLocaleString('en-US')}</div>
-    </div>
-    <div class="card">
-      <div class="label">Collected</div>
-      <div class="value">${formatMoney(report.totals.collectedCents)}</div>
-    </div>
-    <div class="card">
-      <div class="label">Contracted</div>
-      <div class="value">${formatMoney(report.totals.contractedCents)}</div>
-    </div>
-  </div>
-
-  ${report.events.map(renderEvent).join('')}
-
-  <p class="note">
-    <strong>Collected</strong> is what Stripe has actually taken.
-    <strong>Contracted</strong> counts each payment-plan registration at its full
-    two-installment value, so the gap between the columns is the installments still
-    scheduled to bill. A 100%-off comp counts as a registration with zero revenue —
-    it occupies a seat in the room like any other. <strong>% of revenue</strong> is
-    each code's share of that event's contracted total.
-  </p>
-  <p class="note">
-    Aggregate figures only. No attendee names, emails, customer records, or payment
-    identifiers are read or displayed.
-  </p>
-</div>
-</body>
-</html>`;
-}
+`;
 
 export default async function handler(req, res) {
   // Set the protective headers FIRST, so every exit path below carries them —
@@ -327,9 +353,18 @@ export default async function handler(req, res) {
     return res.status(405).send('Method not allowed');
   }
 
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+
   const key = clientKey(req);
   if (isThrottled(key)) {
-    return res.status(429).send('Too many attempts. Try again later.');
+    return res
+      .status(429)
+      .send(
+        renderMessage(
+          'Too many attempts',
+          'Too many failed sign-ins from this address. Wait 15 minutes and try again.'
+        )
+      );
   }
 
   const auth = checkAuth(req);
@@ -337,13 +372,30 @@ export default async function handler(req, res) {
   if (!auth.configured) {
     // Fail closed. An unset password must lock the page, never open it.
     console.error('[results] RESULTS_USER / RESULTS_PASSWORD are not set');
-    return res.status(500).send('This report is not configured.');
+    return res
+      .status(500)
+      .send(
+        renderMessage(
+          'Not configured',
+          'This report has no credentials set. Add <code>RESULTS_USER</code> and <code>RESULTS_PASSWORD</code> in Vercel &rarr; Environment Variables, then redeploy.'
+        )
+      );
   }
 
   if (!auth.ok) {
     recordFailure(key);
     res.setHeader('WWW-Authenticate', `Basic realm="${REALM}", charset="UTF-8"`);
-    return res.status(401).send('Authentication required.');
+    // A styled page, not a bare string: if the browser suppresses its password
+    // prompt (or you dismiss it) the old one-line response looked like a blank
+    // broken page rather than a locked one.
+    return res
+      .status(401)
+      .send(
+        renderMessage(
+          'Password required',
+          'This report is private. Your browser should prompt for a username and password — if it did not, reload the page. Still stuck? Open <code>https://admin@onetalkworkshop.com/results</code> to force the prompt.'
+        )
+      );
   }
 
   FAILED_ATTEMPTS.delete(key);
@@ -379,6 +431,13 @@ export default async function handler(req, res) {
     // Unlike the public endpoints, this one fails loudly: a silent empty
     // report would read as "no sales" and be believed.
     console.error('[results]', message);
-    return res.status(502).send('Could not load figures from Stripe. Please retry.');
+    return res
+      .status(502)
+      .send(
+        renderMessage(
+          'Could not reach Stripe',
+          'The figures could not be loaded from Stripe just now. Reload to try again.'
+        )
+      );
   }
 }
