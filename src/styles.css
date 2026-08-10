@@ -906,6 +906,82 @@
   .testi-card:hover .testi-name,
   .testi-card.is-active .testi-name { opacity: 0; }
 
+  /* ================= AUGUST VOICES =================
+     Fresh, unattributed quotes from the most recent cohort. Deliberately
+     text-first — no photos, no names — so it reads as raw feedback rather
+     than a second run of the polished alumni carousel above it. Sits on
+     --paper against PROOF's --paper-2 so the two proof blocks separate. */
+  .voices { background: var(--paper); }
+  .voices-head { margin-bottom: 54px; }
+  .voices-head h2 em {
+    font-family: var(--f-serif);
+    font-style: italic;
+    font-weight: 500;
+    color: var(--wine);
+  }
+  .voices-head .lead em {
+    font-family: var(--f-serif);
+    font-style: italic;
+    color: var(--charcoal);
+  }
+
+  /* Columns, not grid: quotes vary a lot in length and masonry flow keeps
+     the ragged bottoms from forcing equal-height cards full of dead space. */
+  .voices-grid {
+    columns: 2;
+    column-gap: 24px;
+    max-width: 1040px;
+    margin: 0 auto;
+  }
+  .voice-card {
+    break-inside: avoid;
+    margin: 0 0 24px;
+    padding: 30px 32px 26px;
+    background: var(--white);
+    border-left: 3px solid var(--wine);
+    box-shadow: 0 2px 10px rgba(17,17,17,0.06);
+    transition: transform 260ms cubic-bezier(0.16, 1, 0.3, 1),
+                box-shadow 260ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  .voice-card:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
+  }
+  .voice-card blockquote { position: relative; }
+  .voice-card blockquote::before {
+    content: "\201C";
+    position: absolute;
+    top: -0.44em;
+    left: -0.10em;
+    font-family: var(--f-serif);
+    font-size: 4.2rem;
+    line-height: 1;
+    color: var(--wine);
+    opacity: 0.16;
+    pointer-events: none;
+  }
+  .voice-card blockquote p {
+    position: relative;
+    font-size: 1.02rem;
+    line-height: 1.62;
+    color: var(--black-soft);
+  }
+  .voice-card figcaption {
+    margin-top: 18px;
+    padding-top: 14px;
+    border-top: 1px solid var(--line);
+    text-transform: uppercase;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.14em;
+    color: var(--gray);
+  }
+
+  @media (max-width: 800px) {
+    .voices-grid { columns: 1; max-width: 620px; }
+    .voice-card { padding: 26px 24px 22px; }
+  }
+
   /* ================= STORIES PAGE ================= */
   .stories-hero {
     padding: 80px 0 56px;
