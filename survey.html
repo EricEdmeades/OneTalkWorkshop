@@ -49,6 +49,36 @@
 
       <div data-questions></div>
 
+      <!-- Publishing permission. Deliberately separate from the contact opt-in
+           below: agreeing to be emailed about your feedback is not the same as
+           agreeing to see it on a sales page, and conflating the two is what
+           left the August 2026 quotes unusable by name. Nothing is preselected,
+           and an unanswered question is treated as "Declined" server-side. -->
+      <fieldset class="survey-q survey-consent">
+        <legend>May we quote you?</legend>
+        <span class="survey-help">Some answers are so good we would like to share them. Entirely up to you, and it changes nothing about your feedback either way.</span>
+
+        <label class="survey-check">
+          <input type="radio" name="marketingConsent" value="Named" data-consent>
+          <span>Yes &mdash; and you can use my name.</span>
+        </label>
+
+        <label class="survey-field survey-consent-name" data-consent-name hidden>
+          <span class="survey-label">The name you'd like us to use</span>
+          <input type="text" name="displayName" autocomplete="name" maxlength="80" placeholder="e.g. Jane Okafor, Leadership Coach">
+        </label>
+
+        <label class="survey-check">
+          <input type="radio" name="marketingConsent" value="Anonymous" data-consent>
+          <span>Yes &mdash; but keep me anonymous.</span>
+        </label>
+
+        <label class="survey-check">
+          <input type="radio" name="marketingConsent" value="Declined" data-consent>
+          <span>No, please keep my answers private.</span>
+        </label>
+      </fieldset>
+
       <label class="survey-check">
         <input type="checkbox" name="contactOptIn">
         <span>It's fine for Eric's team to contact me about this feedback. (Only then is your email stored as an address.)</span>

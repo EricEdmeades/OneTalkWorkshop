@@ -99,6 +99,14 @@ export function hashEmail(email, salt) {
     .slice(0, 32);
 }
 
+// Fail closed. Consent has to be granted explicitly, so an unrecognised value
+// is a refusal — never a default yes.
+export const CONSENT_VALUES = ['Named', 'Anonymous', 'Declined'];
+
+export function normaliseConsent(value) {
+  return CONSENT_VALUES.includes(value) ? value : 'Declined';
+}
+
 function isEmail(value) {
   return typeof value === 'string' && /^[^@\s]+@[^@\s.]+\.[^@\s]+$/.test(value.trim());
 }
@@ -157,6 +165,19 @@ export default async function handler(req, res) {
   if (answers.anythingElse) fields['Anything Else'] = answers.anythingElse;
   // Opt-in only: the address is stored because they asked to be contacted.
   if (body.contactOptIn === true) fields['Contact Email'] = String(body.email).trim();
+
+  // Publishing permission. Anything that is not one of the three known answers
+  // — absent, misspelt, or invented by a hand-rolled POST — is stored as
+  // "Declined", so the failure mode of a broken client is silence, not an
+  // unearned licence to quote someone.
+  const consent = normaliseConsent(body.marketingConsent);
+  fields['Marketing Consent'] = consent;
+  // A name is only meaningful next to a Named consent, so that is the only
+  // case where the survey keeps one at all.
+  if (consent === 'Named') {
+    const displayName = cleanText(body.displayName).slice(0, 80);
+    if (displayName) fields['Display Name'] = displayName;
+  }
 
   try {
     const airtable = await fetch(`${AIRTABLE_API}/${BASE_ID}/${TABLE_ID}`, {

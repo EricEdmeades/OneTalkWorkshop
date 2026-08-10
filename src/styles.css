@@ -1854,6 +1854,7 @@ a.hero-seat-stamp:focus-visible {
 }
 
 .survey-field input[type="email"],
+.survey-field input[type="text"],
 .survey-text {
   display: block;
   width: 100%;
@@ -1868,6 +1869,7 @@ a.hero-seat-stamp:focus-visible {
 }
 
 .survey-field input[type="email"]:focus,
+.survey-field input[type="text"]:focus,
 .survey-text:focus {
   outline: 2px solid var(--wine);
   outline-offset: 1px;
@@ -1885,6 +1887,30 @@ a.hero-seat-stamp:focus-visible {
 }
 
 .survey-check input { margin-top: 0.2rem; }
+
+/* Consent block. The options sit tighter than standalone checkboxes so the
+   three read as one question, and the name field indents under the answer
+   it belongs to. [hidden] needs the !important because .survey-field above
+   sets display:block, which would otherwise win over the UA hidden rule. */
+.survey-consent .survey-check { margin-bottom: 0.85rem; }
+.survey-consent .survey-help { margin-bottom: 1.1rem; }
+/* display:block is load-bearing, not cosmetic: a <label> is inline by
+   default, so the indent and the tightened top margin below are both
+   silently dropped without it. */
+.survey-consent-name {
+  display: block;
+  margin: -0.35rem 0 1.15rem 1.7rem;
+  max-width: 26rem;
+}
+.survey-consent-name[hidden] { display: none !important; }
+/* The shared .survey-label is sized for a top-level question. Here it is a
+   follow-up to a radio, so it should not out-shout the option it hangs off. */
+.survey-consent-name .survey-label {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  margin-bottom: 0.35rem;
+  color: var(--charcoal);
+}
 
 .survey-form .btn-primary {
   width: 100%;

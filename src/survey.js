@@ -150,6 +150,26 @@ function showThanks() {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
+function selectedConsent() {
+  const chosen = form.querySelector('input[name="marketingConsent"]:checked');
+  return chosen ? chosen.value : '';
+}
+
+// The name field only exists for the one answer it belongs to. Showing it
+// under all three would read as though a name is wanted regardless of what
+// they picked, which is the opposite of what this question is establishing.
+function bindConsent() {
+  const nameField = form.querySelector('[data-consent-name]');
+  if (!nameField) return;
+  form.querySelectorAll('[data-consent]').forEach((radio) => {
+    radio.addEventListener('change', () => {
+      const named = selectedConsent() === 'Named';
+      nameField.hidden = !named;
+      if (!named) nameField.querySelector('input').value = '';
+    });
+  });
+}
+
 async function submit(event) {
   event.preventDefault();
   const button = form.querySelector('button[type="submit"]');
@@ -172,6 +192,10 @@ async function submit(event) {
         day: selectedDay,
         email,
         answers,
+        marketingConsent: selectedConsent(),
+        // Sent whatever the choice; the server drops it unless consent is
+        // "Named", so a name typed and then un-chosen is never stored.
+        displayName: form.querySelector('input[name="displayName"]').value,
         contactOptIn: form.querySelector('input[name="contactOptIn"]').checked,
         website: form.querySelector('input[name="website"]').value,
         formStartedAt,
@@ -197,6 +221,7 @@ function init() {
   if (!form) return;
   renderDayPicker();
   renderQuestions();
+  bindConsent();
   form.addEventListener('submit', submit);
 }
 

@@ -301,6 +301,11 @@ async function loadFeedbackResponses() {
         id: record.id,
         submittedAt: f['Submitted At'] || null,
         contactEmail: f['Contact Email'] || '',
+        // Empty on every record written before the consent question shipped.
+        // buildFeedbackReport treats empty as "never asked", which is not
+        // permission — see lib/survey.js.
+        marketingConsent: f['Marketing Consent'] || '',
+        displayName: f['Display Name'] || '',
         day: DAY_FROM_LABEL[f.Day] || null,
         respondent: f.Respondent || null,
         nps: typeof f.NPS === 'number' ? f.NPS : null,
