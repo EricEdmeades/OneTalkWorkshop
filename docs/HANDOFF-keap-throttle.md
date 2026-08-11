@@ -1,7 +1,22 @@
 # /results Keap throttling — diagnosis and resolution
 
-**Opened:** 2026-08-11 · **Resolved in code:** 2026-08-11 · **Status:** code complete,
-**two manual setup steps outstanding** (see below)
+**Opened:** 2026-08-11 · **Status: RESOLVED and verified in production 2026-08-11 18:50 UTC**
+
+```
+[refresh-keap] aug tag 2008: 211 contacts (800ms)
+[refresh-keap] sep tag 1825: 133 contacts (1498ms)
+[refresh-keap] orders: 18 in cohort (1873ms)
+[refresh-keap] stored snapshot (cron): aug=211 sep=133 orders=18 attempt=1/4
+```
+
+First attempt, 1.9 seconds. Aug 211 and 18 orders match the independently
+verified figures below exactly.
+
+**The headline lesson: the throttling was real but it was NOT what broke this.**
+The report was broken by an unbounded pagination loop (see "the actual bug"
+below). Keap answers in under a second. Four bugs were stacked, each hiding the
+next — no request timeout, cron starved by page views, silent early returns, and
+finally the non-terminating walk that was doing the real damage all along.
 
 ## What was actually wrong
 
@@ -96,6 +111,44 @@ primary refresher.)
 
 **Env var changes only take effect on a new deployment**, so these needed a redeploy
 to reach the running functions.
+
+## The actual bug: an unbounded pagination walk
+
+`loadTagMembers` walked `while (url) { …; url = body.next }` with **no page
+cap**. Keap can return a `next` link on the final page, so its absence is not a
+reliable end-of-collection signal and the loop never terminated — it spun until
+the platform killed the function. Three runs died this way (300s, 300s, then
+120s once `maxDuration` was pinned), each producing **no log output at all**,
+because the hang happened before anything could log.
+
+**The silence is what identified it**, and it inverted the working theory: the
+runs that timed out were the ones where **Keap answered**, since only a 200
+enters the pagination loop. The 18:14 page view logged cleanly and fast
+*because* it got a 429 and never reached the loop. Every time Keap actually
+worked, the function hung — the opposite of "Keap is unavailable".
+
+Both walks now share one `paginate` helper that stops on four independent
+conditions: no next link, a next link identical to the page just fetched, an
+empty page regardless of what `next` claims, or a hard page cap (20 pages; the
+real answer is 1). `lib/keap-api.test.js` covers all four, including the exact
+production shape. `fetchKeapChannel` also logs each stage with elapsed time —
+had that existed, this would have been one debugging cycle instead of three.
+
+**Debugging lesson worth keeping:** a function killed at the platform limit with
+zero log output means the hang preceded all logging. Reach for the unbounded
+loop, not the network call — and log stage transitions in any job whose failure
+mode is "killed from outside".
+
+## Also fixed: page views were starving the cron
+
+The Blob pacing marker is shared between the cron and the opportunistic
+page-view refresh, and `MIN_INTERVAL_MS` was 60s. A page load at 18:29:36 wrote
+the marker, so the cron at 18:30:33 — 57 seconds later — backed off without
+calling Keap and returned `200` while logging nothing. Refreshing `/results` to
+check for figures was suppressing the job meant to produce them. The marker
+paces opportunistic attempts; the schedule paces the cron, so the floor is now
+5s. Every cron run logs its outcome, so a deliberate skip can never again look
+identical to a cron that never fired.
 
 ## Post-deploy fix: the first cron run 504'd at 300s
 
