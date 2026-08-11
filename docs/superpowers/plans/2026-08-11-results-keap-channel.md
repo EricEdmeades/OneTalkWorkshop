@@ -260,7 +260,7 @@ describe('combineChannels', () => {
     expect(aug.collectedCents).toBe(300000 + 688200);
     expect(aug.contractedCents).toBe(320000 + 688200);
     expect(sep.collectedCents).toBe(200000 + 817900);
-    expect(c.totals.collectedCents).toBe(500000 + 688200 + 200000 + 817900);
+    expect(c.totals.collectedCents).toBe(300000 + 688200 + 200000 + 817900);
   });
 
   it('preserves the per-channel figures and the Stripe web event (rows) for the detail table', () => {
