@@ -8,6 +8,7 @@
     { "source": "/results", "destination": "/api/results" },
     { "source": "/results/:view", "destination": "/api/results?view=:view" }
   ],
+  "crons": [{ "path": "/api/refresh-keap", "schedule": "*/10 * * * *" }],
   "headers": [
     {
       "source": "/assets/(.*)",

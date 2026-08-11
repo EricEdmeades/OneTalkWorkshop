@@ -1,84 +1,119 @@
-# HANDOFF — /results Keap channel is 429-throttled in production
+# /results Keap throttling — diagnosis and resolution
 
-**Date:** 2026-08-11 · **Status:** UNRESOLVED (feature works except the Keap channel)
+**Opened:** 2026-08-11 · **Resolved in code:** 2026-08-11 · **Status:** code complete,
+**two manual setup steps outstanding** (see below)
 
-## One-paragraph summary
+## What was actually wrong
 
-The two-channel `/results` feature (Stripe + Keap) is built, merged to `main`, and
-deployed. The **Stripe (web) channel works**. The **Keap channel is down in
-production** because every Keap call from prod gets **HTTP 429**. The report
-degrades gracefully (shows the web channel + a banner, roster "—"). The code is
-now correct and gentle. The blocker is external: **the Keap API key prod uses is
-pinned at its per-minute rate limit by something other than this report.**
+Not an env problem, not a key problem, and not something this project could fix by
+being more polite.
 
-## What is DEFINITIVELY known (from prod logs + curl)
+**Keap's 240-requests-per-minute "product" throttle is an account-wide bucket shared
+by every integration on the Keap account. It is not per-key.**
 
-- Prod runs with the **intended key** — logged fingerprint `sha256(key)[:12] =
-  e62560002f28`, keylen 57, which **matches** the key the user tested. So the
-  Vercel `KEAP_API_KEY` env value is correct. Not an env/scope problem.
-- Keap limits (from `x-keap-*` response headers) are **per-key (product)** 240/min
-  + 30k/day, and **per-account (tenant)** 10,417/min + 250k/day.
-- On every prod 429: `x-keap-product-throttle-used: 240/240` (this key maxed),
-  while `x-keap-tenant-throttle-used: ~241/10417` (account nearly idle). So
-  **~all account traffic is on THIS key**, and this key alone is at 240/min.
-- The user curled the **same** key from their machine and got **200, used 1/240**
-  (idle). So the key oscillates: idle when they curl, maxed when prod runs.
-- The user loads `/results` **once every 10–15 min** and all tabs are closed — so
-  the user's own loads are NOT the 240/min source.
+The proof: a **brand-new key created for this project alone** (fingerprint
+`e62560002f28`, keylen 57), making roughly **one request every five minutes**, still
+came back with `x-keap-product-throttle-used: 240/240`. A key making one request per
+five minutes cannot fill its own 240/min bucket. The tenant counter sat at `241` at
+the same instant — essentially all account API traffic lives in that one bucket.
 
-## The open question
+**Why it looked like the key "oscillated".** The 429 headers were only ever logged
+*on a 429*, so every sample came from a saturated moment — pure selection bias. The
+real shape is bursty: the tenant **day** counter read 8,622 at 17:33 (≈8 req/min
+averaged over the day), yet two samples five minutes apart differed by **248
+requests**. So a burst of ~250 requests periodically saturates the minute bucket
+while the long-run average stays low. Manual curls landed in quiet windows;
+`/results` kept landing in bursts.
 
-**What is consuming key `e62560002f28` at ~240 requests/minute?** It is not the
-OTW report's user-driven loads (rare) and not the current report code (now makes
-~1 call per load, no retry). Candidates to investigate NEXT session:
+**Consequence:** any live Keap read on the request path is a coin flip, permanently.
+No amount of caching, backoff or key-rotation on this side changes that.
 
-1. **The key is not truly dedicated** — some OTHER Speaker Nation app / Vercel
-   project / Keap integration is configured with this same key value and hammers
-   it. Audit where this exact key is used (Keap → the integration/app that owns
-   it; other Vercel projects' `KEAP_API_KEY`). Fix: issue a key used ONLY by
-   `onetalk-landing`.
-2. **A Keap-side automation / WooCommerce→Keap sync / cron** using this key.
-3. Confirm no OLD `onetalk-landing` deployment (with the earlier retry code) is
-   still receiving traffic (prod alias should point only to newest — verify).
+### Ruled out
 
-## Recommended robust fix regardless of the above
+- **A second key of our own.** Issuing another key cannot help — same shared bucket.
+- **S3-LMS.** It uses the same `KEAP_API_KEY` env-var name and `X-Keap-API-Key`
+  header, and its Keap code is genuinely inefficient (`hasTag()` in
+  `src/lib/keap.ts` does a redundant `GET /contacts/{id}/tags` on every *negative*
+  answer, so `/api/progress/sync` costs up to 10 calls per dashboard load, and
+  `/api/checkout/keap-status` polls every 2s with no auth gate). **But it is idle in
+  production** — 22 requests in 3 hours, `/api/progress/sync` once. Not the source.
+  Still worth fixing on its own merits before it gets traffic.
+- **Old deployments.** The production alias points at the newest deployment only.
 
-Make the report **not depend on hitting Keap live per request**: fetch the Keap
-data on a **schedule / background** and persist it in a **durable, cross-instance
-store** (Airtable is already used here for the survey; or Vercel KV/Edge Config).
-Then `/results` reads the persisted snapshot and only refreshes it occasionally —
-so a single successful fetch (grabbed whenever the key has a free slot) serves all
-requests for a long time, and the report never races the 240/min limit. This
-sidesteps "who is hammering the key" entirely.
+### Still unidentified (and no longer blocking)
 
-## State of the code (all on `main`, deployed)
+Whatever fires ~250 requests in a burst is **outside Vercel**. Most likely the
+WooCommerce→Keap sync on speakernation.com, a Keap-side automation/campaign, or a
+Zapier integration. Worth finding eventually — Keap has no per-integration usage
+breakdown, so it needs checking from the Keap side — but the report no longer
+depends on the answer.
 
-`/results` is two-channel: headcount from Keap Aug/Sep tags (2008/1825), revenue =
-Stripe Checkout net + Keap order net. Keap orders fetched via server-side filter
-`GET /orders?product_id=49` (one page). `api/results.js` `loadKeap()` has a 30-min
-cache, serve-stale, and 60s failure backoff; `keapFetch()` does NOT retry 429s.
+## What was built
 
-**Cleanup owed:** `keapFetch()` in `api/results.js` still has TEMPORARY diagnostic
-logging — it logs the 429 rate-limit headers AND a one-way key fingerprint
-(`keyfp`) + key length. Remove that once the throttling is resolved.
+`/results` no longer calls Keap at all. A cron stores a snapshot; the report reads it.
 
-## Verified numbers (for when Keap comes back / to reconcile the sheet)
+| File | Role |
+|---|---|
+| `api/refresh-keap.js` | Cron endpoint (`*/10 * * * *`), `CRON_SECRET`-authenticated, fails closed |
+| `lib/keap-refresh.js` | 4 attempts, 15s apart, keeps the first that lands; records the attempt *before* making it |
+| `lib/keap-store.js` | Snapshot + pacing marker on **Vercel Blob**, `access: 'private'`, read with `useCache: false` |
+| `lib/keap-api.js` | The only Keap caller for the report; raises `KeapThrottleError` on 429, never retries in place |
+| `lib/keap-snapshot.js` | Pure shape/validation/staleness; rejects unknown `version` rather than mis-rendering |
 
-- Keap roster (headcount): **Aug tag 2008 = 211, Sep tag 1825 = 130/131** (≈342).
-- Keap OTW orders (product 49), current cohort by tag: ~**7 Aug ($6,882 gross) +
-  11 Sep ($8,179 gross)**; net = `total + refund_total` (refund_total is negative).
+Retrying is safe in the refresher and was not safe in the request path — the
+difference is that this runs in the background, one caller at a time, seconds apart,
+with nobody waiting. The old code retried inside the request across concurrent cold
+instances, inside the same throttled minute, so the retries *became* the load.
+
+Also fixed along the way: the dashboard panel showed a structural `0` for the roster
+when Keap was unavailable, which reads as "nobody registered". It now shows `—`, the
+same as the full report.
+
+The temporary 429/key-fingerprint diagnostics have been removed — `keapFetch` no
+longer exists in `api/results.js`.
+
+Tests: 206 passing, including 9 that pin the refresher's **call footprint** (attempt
+budget respected, no call at all when backed off, no retry on a non-throttle error).
+
+## Setup (done 2026-08-11)
+
+1. **Blob store** linked to `onetalk-landing`. Note it provisioned
+   `BLOB_STORE_ID` + `BLOB_WEBHOOK_PUBLIC_KEY` and **not**
+   `BLOB_READ_WRITE_TOKEN` — a dashboard-connected store authenticates with the
+   per-invocation runtime **OIDC** token instead of a static one. `@vercel/blob`
+   resolves OIDC-token-plus-store-id *before* the read-write token, so this is
+   fully supported. `isBlobConfigured()` accepts either shape; an earlier version
+   checked only for `BLOB_READ_WRITE_TOKEN` and so reported a correctly connected
+   store as "not configured", silently disabling the refresh. `lib/keap-store.test.js`
+   guards both paths.
+2. **`CRON_SECRET`** set for Production + Preview. `api/refresh-keap.js` returns
+   500 without it, by design.
+
+Plan is **Pro**, so the 10-minute cron schedule runs as written. (On Hobby it would
+be coerced to daily and the opportunistic path — one gentle attempt per 5 minutes,
+triggered by a page view once the snapshot passes 30 minutes old — would become the
+primary refresher.)
+
+**Env var changes only take effect on a new deployment**, so these needed a redeploy
+to reach the running functions.
+
+## Verified numbers (to reconcile against once the snapshot populates)
+
+- Keap roster: **Aug tag 2008 = 211, Sep tag 1825 = 130/131** (≈342).
+- Keap OTW orders (product 49), current cohort: ~**7 Aug ($6,882 gross) + 11 Sep
+  ($8,179 gross)**; net = `total + refund_total` (`refund_total` is negative).
 - Stripe web channel (net of refunds): **$7,442 collected / $9,096 contracted**.
-- Original ask: reconcile combined vs the admin sheet (Aug $7,839 / Sep $9,776).
-  The admin sheet is Keap-tag-derived and internally inconsistent; `/results` is
-  intended to be the source of truth, not to match the sheet exactly.
+- The admin sheet (Aug $7,839 / Sep $9,776) is Keap-tag-derived and internally
+  inconsistent. `/results` is the source of truth, not something to match exactly.
 
-## How to observe prod without touching Keap
+## Observing this in production
 
 Vercel MCP (project `prj_3TISES2wjyVLaHooZgrQZdqb9Pvi`, team
-`team_gTIDxZoMuLWEumXxWbs0NqZv`): `get_runtime_logs` on the newest READY
-production deployment, query `Keap`. A `[results] Keap 429 keyfp …` line = still
-throttled and shows the headers + which key. Absence of any `[results]` error
-line on a real `200 [error/serverless]` `/results` load = success. Do NOT call the
-Keap API directly while diagnosing (adds to the very throttle we're chasing);
-read logs instead. A working Keap key sits in local `.env.local` for read-only
-checks if truly needed — use sparingly and pace calls.
+`team_gTIDxZoMuLWEumXxWbs0NqZv`): `get_runtime_logs`, query `refresh-keap`.
+
+- `[refresh-keap] stored snapshot (cron): aug=… sep=… orders=…` — a refresh landed.
+- `[refresh-keap] Keap throttled all 4 attempt(s)` — expected occasionally; harmless,
+  the previous snapshot still serves.
+
+**Do not call the Keap API directly while diagnosing** — it adds to the very bucket
+being contended. Read logs instead.

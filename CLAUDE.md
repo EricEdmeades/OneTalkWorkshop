@@ -65,6 +65,26 @@ The report is **aggregate-only by construction**: `loadSessions()` projects each
 
 **`lib/results.js`** holds the pure aggregation (`buildReport`, `formatMoney`, `formatPct`) and is unit-tested in `lib/results.test.js` — same split as `lib/pricing.js`/`lib/seats.js`, so the counting and money math are verifiable without a network. Two revenue columns: **Collected** is `amount_total` as Stripe took it; **Contracted** multiplies a `mode: "subscription"` registration by `SUBSCRIPTION_PERIOD_COUNT` (exported from `lib/pricing.js`) because `cancel_at` pins a plan to exactly 2 billings. Importing that constant rather than hardcoding `2` is what keeps the revenue math and the `cancel_at` math from drifting.
 
+### The Keap channel of /results is a stored snapshot, never a live read
+
+`/results` merges two sales channels: Stripe Checkout (onetalkworkshop.com) and Keap/WooCommerce (speakernation.com). Headcount comes from Keap tag membership (`2008` August / `1825` September); revenue is Stripe net **+** Keap order net, de-duped on a one-way email hash.
+
+**`api/results.js` must never call Keap.** Keap's `240 requests/minute` limit is an **account-wide bucket shared by every integration on the Keap account — it is not per-key**. This was established the hard way: a brand-new key issued for this project alone, making roughly one request every five minutes, still returned `x-keap-product-throttle-used: 240/240`. Some consumer outside this codebase saturates that bucket in bursts (average account load is only ~8 req/min, but two samples five minutes apart differed by 248 requests). Issuing yet another key cannot fix this. Earlier attempts to cope in-request made it worse: retrying a 429 landed inside the same throttled minute, and with a cold Fluid Compute instance per concurrent request those retries multiplied into a self-inflicted storm.
+
+So the flow is:
+
+- **`api/refresh-keap.js`** — a Vercel Cron (`*/10 * * * *`, registered in `vercel.json`) that reads Keap and stores a snapshot. Authenticated with `CRON_SECRET` (`Authorization: Bearer …`); it **fails closed** if that is unset, because an open refresh endpoint is a free way for anyone to burn the quota. A throttled run returns `200 {ok:false}`, not a 500 — the previous snapshot is still good and "Keap was busy this minute" must not page anyone.
+- **`lib/keap-refresh.js`** — takes up to 4 attempts, 15s apart, keeping the first that lands. Retrying is safe *here* and was not safe in the request path: this runs in the background, one caller at a time, with seconds between tries. It records the attempt **before** making it, so a crash still costs the pacing interval instead of becoming a hot loop.
+- **`lib/keap-store.js`** — the snapshot lives on **Vercel Blob** with `access: 'private'` (it carries revenue figures), read with `useCache: false` so a CDN copy can't re-introduce the staleness this exists to remove. Module scope is *not* durable — a cold Fluid Compute instance starts empty, which is why the old in-memory cache sent every cold start back to Keap. A separate `keap/last-attempt.json` paces retries across instances and deploys.
+- **`lib/keap-api.js`** — the only module that talks to Keap for the report, imported *only* by the refresher. `keapFetch` does **not** retry; it raises `KeapThrottleError` on 429 so the refresher can distinguish "wait and try again" from "this will never work".
+- **`lib/keap-snapshot.js`** — pure shape/validation/staleness, unit-tested. `parseSnapshot` rejects an unknown `version`, so a shape change degrades to "no Keap data" for one cycle rather than mis-rendering an old blob. Wrong figures on a revenue report are worse than absent ones.
+
+`/results` reads the snapshot and, only when it is older than 30 minutes, takes **one** gentle opportunistic attempt paced by the durable marker — a safety net in case the cron cannot run often enough, not a second fetching strategy.
+
+**When there is no snapshot, the roster renders as `—`, never `0`** — on the full report *and* on the dashboard panel. A structural `0` there reads as "nobody registered" and would be believed.
+
+Requires Blob credentials and `CRON_SECRET`. Blob comes in **two shapes and `isBlobConfigured()` must accept both**: a dashboard-connected store today provisions `BLOB_STORE_ID` and authenticates with the per-invocation runtime OIDC token, and does *not* necessarily set `BLOB_READ_WRITE_TOKEN`. Checking only for the read-write token made a correctly connected store report "not configured", silently disabling the refresh — a bug that reads as an operator mistake, which is why `lib/keap-store.test.js` pins both paths. Without any of it, `/results` still renders the Stripe channel and reports the Keap roster as unavailable — it does not 500.
+
 ## Deployment
 
 `vercel.json` sets `buildCommand`/`outputDirectory` for Vite, plus security headers (HSTS, X-Frame-Options, etc.) and long-cache `Cache-Control` for `/assets/*`. Branch mapping: `main` → production, any other branch or PR → preview deployment. See `README.md` for the full Vercel Git-integration and custom-domain setup steps.
