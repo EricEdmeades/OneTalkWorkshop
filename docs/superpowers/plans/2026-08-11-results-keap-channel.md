@@ -316,9 +316,11 @@ export function dedupeKeapOrders(orders, stripeHashes) {
 const tagCount = (counts, date) => (Number.isFinite(counts?.[date]) ? counts[date] : 0);
 
 export function combineChannels(stripeReport, keapReport, tagCounts = {}, overlapCount = 0) {
-  const events = EVENTS.map((e, i) => {
-    const web = stripeReport.events[i];
-    const keap = keapReport.events[i];
+  const events = EVENTS.map((e) => {
+    // Pair by date, not array index, so this never depends on the two builders
+    // emitting events in the same order.
+    const web = stripeReport.events.find((x) => x.date === e.date);
+    const keap = keapReport.events.find((x) => x.date === e.date);
     const registrations = tagCount(tagCounts, e.date);
     return {
       date: e.date,
@@ -335,7 +337,7 @@ export function combineChannels(stripeReport, keapReport, tagCounts = {}, overla
 
   const sum = (f) => events.reduce((acc, e) => acc + f(e), 0);
   const totals = {
-    registrations: tagCount(tagCounts, 'august') + tagCount(tagCounts, 'september'),
+    registrations: sum((e) => e.registrations),
     collectedCents: sum((e) => e.collectedCents),
     contractedCents: sum((e) => e.contractedCents),
     webCollectedCents: stripeReport.totals.collectedCents,
