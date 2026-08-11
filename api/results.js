@@ -69,24 +69,23 @@ function keapHeaders() {
 // retry only briefly on a 429 — retrying hard just adds to the load that caused
 // it. A couple of tries rides out a momentary blip; sustained throttling falls
 // through to the long Keap cache / graceful degradation in loadKeap().
+// Keap's per-key throttle is 240 requests/MINUTE. Retrying a 429 is
+// counterproductive: the retry lands in the same throttled minute and only adds
+// to the load — and with a cold Fluid Compute instance per concurrent request,
+// those retries multiply into a self-inflicted storm that pins the key at 240/min
+// so it never recovers. So this does NOT retry. A 429 fails fast and the caller
+// (loadKeap) serves the last good data / backs off, keeping the report's whole
+// footprint at a handful of calls per half hour.
 async function keapFetch(url) {
-  for (let attempt = 0; ; attempt++) {
-    const res = await fetch(url, { headers: keapHeaders() });
-    if (res.status !== 429 || attempt >= 2) {
-      if (res.status === 429) {
-        // TEMP diagnostic: which Keap limit is production actually hitting? The
-        // x-keap-* headers report per-key (product) and account (tenant) usage.
-        const h = {};
-        res.headers.forEach((v, k) => {
-          if (/^x-keap-.*(throttle|quota)/i.test(k) || k === 'retry-after') h[k] = v;
-        });
-        console.error('[results] Keap 429 diagnostic', JSON.stringify(h));
-      }
-      return res;
-    }
-    const retryAfter = Number(res.headers.get('retry-after')) || 2 ** attempt;
-    await new Promise((r) => setTimeout(r, retryAfter * 1000));
+  const res = await fetch(url, { headers: keapHeaders() });
+  if (res.status === 429) {
+    const h = {};
+    res.headers.forEach((v, k) => {
+      if (/^x-keap-.*(throttle|quota)/i.test(k)) h[k] = v;
+    });
+    console.error('[results] Keap 429', JSON.stringify(h));
   }
+  return res;
 }
 
 // The Stripe walk is ~25 sequential paged requests (cursor pagination cannot
