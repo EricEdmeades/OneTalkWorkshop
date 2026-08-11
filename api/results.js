@@ -25,6 +25,9 @@ import crypto from 'node:crypto';
 import Stripe from 'stripe';
 import { buildReport } from '../lib/results.js';
 import { annotateRefunds } from '../lib/refunds.js';
+import { emailHash } from '../lib/email-hash.js';
+import { buildKeapReport } from '../lib/keap-orders.js';
+import { dedupeKeapOrders, combineChannels } from '../lib/results-combined.js';
 import { buildFeedbackReport } from '../lib/survey.js';
 import { renderMessage } from '../lib/report-chrome.js';
 import { renderRegistrationsPage } from '../lib/registrations-render.js';
@@ -47,6 +50,29 @@ const MAX_REFUNDS = 5000;
 
 // A Stripe reference field is either the id string or the expanded object.
 const stripeId = (ref) => (typeof ref === 'string' ? ref : ref?.id ?? null);
+
+const KEAP_BASE_V1 = 'https://api.infusionsoft.com/crm/rest/v1';
+const KEAP_TAG_AUGUST = process.env.KEAP_TAG_ID_AUGUST || '2008';
+const KEAP_TAG_SEPTEMBER = process.env.KEAP_TAG_ID_SEPTEMBER || '1825';
+const KEAP_OTW_PRODUCT_ID = 49; // "One Talk Workshop"
+// Bounded scan of the Keap order log (newest first). OTW orders number a few
+// dozen; this cap only guards a runaway walk and is surfaced if hit.
+const MAX_KEAP_ORDER_PAGES = 60;
+
+function keapHeaders() {
+  return { 'X-Keap-API-Key': process.env.KEAP_API_KEY, Accept: 'application/json' };
+}
+
+// Keap throttles bursts of requests; retry a 429 a few times with backoff so a
+// transient rate-limit doesn't 502 the whole report.
+async function keapFetch(url) {
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch(url, { headers: keapHeaders() });
+    if (res.status !== 429 || attempt >= 4) return res;
+    const retryAfter = Number(res.headers.get('retry-after')) || 2 ** attempt;
+    await new Promise((r) => setTimeout(r, retryAfter * 1000));
+  }
+}
 
 // The Stripe walk is ~25 sequential paged requests (cursor pagination cannot
 // be parallelised), which measured ~35s against the live account. Cache the
@@ -259,6 +285,10 @@ async function loadSessions() {
       // IO-only: used to join refunds in lib/refunds.js, then stripped there
       // before buildReport or any render sees the session.
       paymentIntentId: stripeId(session.payment_intent),
+      // IO-only: hashed for cross-channel de-dup in lib/results-combined.js. The
+      // raw email is read here and reduced to a one-way digest; buildReport and
+      // every render ignore it.
+      emailHash: emailHash(session.customer_details?.email),
     });
   }
 
@@ -298,28 +328,130 @@ async function loadRefundIndex() {
   return { byPaymentIntent, totalCents };
 }
 
+// The set of contact ids carrying a tag — used both as the headcount (its size)
+// and to attribute each OTW order to a date without a per-order call.
+async function loadKeapTagMembers(tag) {
+  const ids = new Set();
+  let url = `${KEAP_BASE_V1}/tags/${tag}/contacts?limit=1000`;
+  while (url) {
+    const res = await keapFetch(url);
+    if (!res.ok) throw new Error(`Keap tag members ${tag}: ${res.status}`);
+    const body = await res.json();
+    for (const c of body.contacts || []) if (c?.contact?.id != null) ids.add(c.contact.id);
+    url = body.next || null;
+  }
+  return ids;
+}
+
+// Walk the Keap order log (newest first) and project OTW orders whose contact
+// carries an Aug/Sep tag. netCents = (total + refund_total) — Keap stores
+// refund_total as a negative number.
+async function loadKeapOrders({ augSet, sepSet }) {
+  const orders = [];
+  let url = `${KEAP_BASE_V1}/orders?limit=100&order=date&order_direction=descending`;
+  let pages = 0;
+  let truncated = false;
+
+  while (url) {
+    if (pages >= MAX_KEAP_ORDER_PAGES) {
+      truncated = true;
+      console.error('[results] Keap order scan hit MAX_KEAP_ORDER_PAGES; figures may be incomplete');
+      break;
+    }
+    pages += 1;
+    const res = await keapFetch(url);
+    if (!res.ok) throw new Error(`Keap orders: ${res.status}`);
+    const body = await res.json();
+
+    for (const o of body.orders || []) {
+      const isOtw = (o.order_items || []).some(
+        (i) => i.product_id === KEAP_OTW_PRODUCT_ID || /one talk/i.test(i.name || '')
+      );
+      if (!isOtw) continue;
+
+      const contactId = o.contact?.id ?? o.contact_id;
+      // A contact in both sets is attributed to August deterministically (see
+      // spec); expected count 0.
+      let date = null;
+      if (augSet.has(contactId)) date = 'august';
+      else if (sepSet.has(contactId)) date = 'september';
+      if (!date) continue; // not the current cohort (older/untagged)
+      if (augSet.has(contactId) && sepSet.has(contactId)) {
+        console.warn('[results] Keap contact carries both Aug and Sep tags; attributed to August');
+      }
+
+      const total = Number.isFinite(o.total) ? o.total : 0;
+      const refund = Number.isFinite(o.refund_total) ? o.refund_total : 0; // negative
+      const grossCents = Math.round(total * 100);
+      const refundCents = Math.round(-refund * 100);
+      orders.push({
+        date,
+        grossCents,
+        refundCents,
+        netCents: grossCents - refundCents,
+        emailHash: emailHash(o.contact?.email),
+      });
+    }
+
+    url = body.next || null;
+  }
+
+  return { orders, truncated };
+}
+
 async function loadRegistrations({ forceRefresh }) {
   const cached =
     !forceRefresh && reportCache && Date.now() - reportCache.at < CACHE_TTL_MS ? reportCache : null;
   if (cached) return cached;
 
-  // Codes, sessions and refunds are independent lookups — fetch concurrently.
-  const [promoNames, { sessions, truncated }, refundIndex] = await Promise.all([
-    loadCodeNames(),
-    loadSessions(),
-    loadRefundIndex(),
-  ]);
+  // Stripe (web) and Keap (roster + Woo) are independent — fetch concurrently.
+  const [promoNames, { sessions, truncated }, refundIndex, augSet, sepSet] =
+    await Promise.all([
+      loadCodeNames(),
+      loadSessions(),
+      loadRefundIndex(),
+      loadKeapTagMembers(KEAP_TAG_AUGUST),
+      loadKeapTagMembers(KEAP_TAG_SEPTEMBER),
+    ]);
+
+  // A contact tagged for both dates (expected: none) counts toward both dates'
+  // headcount here, while its Woo revenue is attributed to August only.
+  // The tag-member set size IS the roster headcount for that date.
+  const tagCounts = { august: augSet.size, september: sepSet.size };
 
   const annotated = annotateRefunds(sessions, refundIndex.byPaymentIntent);
-  const report = buildReport(annotated, promoNames);
-  // Every succeeded refund minus what the report netted = refunds we could not
-  // tie to a counted registration (payment-plan refunds, other products).
+  const stripeReport = buildReport(annotated, promoNames);
   const unattributedRefundedCents = Math.max(
     0,
-    refundIndex.totalCents - report.totals.refundedCents
+    refundIndex.totalCents - stripeReport.totals.refundedCents
   );
 
-  reportCache = { at: Date.now(), report, truncated, unattributedRefundedCents };
+  const { orders: keapOrdersRaw, truncated: keapTruncated } = await loadKeapOrders({ augSet, sepSet });
+  // De-dup only against real web-channel OTW registrations (completed + dated),
+  // mirroring what buildReport counts — NOT every session in this shared Stripe
+  // account. An abandoned checkout or an unrelated product purchase must not
+  // suppress a genuine Keap/Woo order by the same person.
+  const stripeHashes = new Set(
+    annotated
+      .filter(
+        (s) =>
+          s.status === 'complete' &&
+          (s.metadata?.date === 'august' || s.metadata?.date === 'september')
+      )
+      .map((s) => s.emailHash)
+      .filter(Boolean)
+  );
+  const { orders: keapOrders, overlapCount } = dedupeKeapOrders(keapOrdersRaw, stripeHashes);
+  const keapReport = buildKeapReport(keapOrders);
+
+  const report = combineChannels(stripeReport, keapReport, tagCounts, overlapCount);
+
+  reportCache = {
+    at: Date.now(),
+    report,
+    truncated: truncated || keapTruncated,
+    unattributedRefundedCents,
+  };
   return reportCache;
 }
 
@@ -584,6 +716,13 @@ export default async function handler(req, res) {
       .send(renderMessage('Not configured', 'This report is not configured.'));
   }
 
+  if (!process.env.KEAP_API_KEY) {
+    console.error('[results] KEAP_API_KEY is not set');
+    return res
+      .status(500)
+      .send(renderMessage('Not configured', 'This report is not configured (Keap).'));
+  }
+
   try {
     const entry = await loadRegistrations({ forceRefresh: req.query?.refresh === '1' });
 
@@ -617,8 +756,8 @@ export default async function handler(req, res) {
       .status(502)
       .send(
         renderMessage(
-          'Could not reach Stripe',
-          'The figures could not be loaded from Stripe just now. Reload to try again.'
+          'Could not reach Stripe or Keap',
+          'The figures could not be loaded from Stripe or Keap just now. Reload to try again.'
         )
       );
   }
