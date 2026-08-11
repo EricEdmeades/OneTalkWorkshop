@@ -65,12 +65,14 @@ function keapHeaders() {
   return { 'X-Keap-API-Key': process.env.KEAP_API_KEY, Accept: 'application/json' };
 }
 
-// Keap throttles bursts of requests; retry a 429 a few times with backoff so a
-// transient rate-limit doesn't 502 the whole report.
+// The Keap account's 240/min quota is SHARED across every Speaker Nation app, so
+// retry only briefly on a 429 — retrying hard just adds to the load that caused
+// it. A couple of tries rides out a momentary blip; sustained throttling falls
+// through to the long Keap cache / graceful degradation in loadKeap().
 async function keapFetch(url) {
   for (let attempt = 0; ; attempt++) {
     const res = await fetch(url, { headers: keapHeaders() });
-    if (res.status !== 429 || attempt >= 4) return res;
+    if (res.status !== 429 || attempt >= 2) return res;
     const retryAfter = Number(res.headers.get('retry-after')) || 2 ** attempt;
     await new Promise((r) => setTimeout(r, retryAfter * 1000));
   }
@@ -83,7 +85,18 @@ async function keapFetch(url) {
 // walk — this trades staleness for speed, never correctness, and every page
 // states how old the figures are. `?refresh=1` forces a fresh read.
 const CACHE_TTL_MS = 5 * 60 * 1000;
-let reportCache = null; // { at: number, report, truncated, unattributedRefundedCents }
+let reportCache = null; // { at: number, report, truncated, unattributedRefundedCents, keapError, keapStale }
+
+// The Keap channel gets its OWN, much longer cache and is served STALE on
+// failure. Registrations trickle in slowly, and Keap's 240/min quota is shared
+// across every Speaker Nation app — so once a fetch succeeds, the report reuses
+// that data for KEAP_TTL_MS and touches Keap only ~twice an hour. A failed fetch
+// is not retried more often than KEAP_RETRY_MS, so repeated refreshes during a
+// throttle can't storm the shared quota.
+const KEAP_TTL_MS = 30 * 60 * 1000;
+const KEAP_RETRY_MS = 60 * 1000;
+let keapCache = null; // last GOOD: { at, tagCounts, keapReport, overlapCount }
+let keapLastAttempt = 0;
 
 // Feedback lives in Airtable and is small, so it is read live per view. The
 // survey page must never show yesterday's numbers on the evening of a
@@ -405,6 +418,64 @@ async function loadKeapOrders({ augSet, sepSet }) {
   return { orders, truncated };
 }
 
+// The Keap channel with its long cache, failure backoff and serve-stale
+// behaviour. Returns { tagCounts, keapReport, overlapCount, error, stale }.
+// `error` is set only when there is NO data to show at all; `stale` means we are
+// serving the last good data because a refresh failed or was backed off.
+async function loadKeap(annotated) {
+  if (keapCache && Date.now() - keapCache.at < KEAP_TTL_MS) {
+    return { ...keapCache, error: null, stale: false };
+  }
+  const serveStale = (error) =>
+    keapCache
+      ? { ...keapCache, error: null, stale: true }
+      : { tagCounts: null, keapReport: buildKeapReport([]), overlapCount: 0, error, stale: false };
+
+  // Back off: don't re-attempt a failed fetch on every refresh and pile onto the
+  // shared quota. Serve stale data if we have any, else the degraded state.
+  if (Date.now() - keapLastAttempt < KEAP_RETRY_MS) return serveStale('throttled');
+  keapLastAttempt = Date.now();
+
+  try {
+    // Sequential, not concurrent — two simultaneous requests is what tipped the
+    // shared 240/min quota into a 429 on the tag walks.
+    const augSet = await loadKeapTagMembers(KEAP_TAG_AUGUST);
+    const sepSet = await loadKeapTagMembers(KEAP_TAG_SEPTEMBER);
+    // A contact tagged for both dates (expected: none) counts toward both dates'
+    // headcount, while its Woo revenue is attributed to August only.
+    const tagCounts = { august: augSet.size, september: sepSet.size };
+
+    const { orders } = await loadKeapOrders({ augSet, sepSet });
+
+    // De-dup only against real web-channel OTW registrations (completed + dated),
+    // mirroring what buildReport counts — an abandoned checkout or unrelated
+    // product purchase must not suppress a genuine Keap/Woo order.
+    const stripeHashes = new Set(
+      annotated
+        .filter(
+          (s) =>
+            s.status === 'complete' &&
+            (s.metadata?.date === 'august' || s.metadata?.date === 'september')
+        )
+        .map((s) => s.emailHash)
+        .filter(Boolean)
+    );
+    const { orders: deduped, overlapCount } = dedupeKeapOrders(orders, stripeHashes);
+
+    keapCache = {
+      at: Date.now(),
+      tagCounts,
+      keapReport: buildKeapReport(deduped),
+      overlapCount,
+    };
+    return { ...keapCache, error: null, stale: false };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[results] Keap fetch failed:', msg, keapCache ? '(serving stale)' : '(no cache)');
+    return serveStale(msg);
+  }
+}
+
 async function loadRegistrations({ forceRefresh }) {
   const cached =
     !forceRefresh && reportCache && Date.now() - reportCache.at < CACHE_TTL_MS ? reportCache : null;
@@ -424,58 +495,19 @@ async function loadRegistrations({ forceRefresh }) {
     refundIndex.totalCents - stripeReport.totals.refundedCents
   );
 
-  // Keap (roster + Woo revenue) degrades gracefully: if Keap is unreachable or
-  // rate-limited, still serve the web channel rather than 502 the whole report.
-  // The render surfaces a loud banner and marks the roster / Woo figures as
-  // unavailable — visibly incomplete beats a blank error page.
-  let tagCounts = null;
-  let keapReport = buildKeapReport([]);
-  let overlapCount = 0;
-  let keapTruncated = false;
-  let keapError = null;
-  try {
-    const [augSet, sepSet] = await Promise.all([
-      loadKeapTagMembers(KEAP_TAG_AUGUST),
-      loadKeapTagMembers(KEAP_TAG_SEPTEMBER),
-    ]);
-    // A contact tagged for both dates (expected: none) counts toward both dates'
-    // headcount here, while its Woo revenue is attributed to August only.
-    // The tag-member set size IS the roster headcount for that date.
-    tagCounts = { august: augSet.size, september: sepSet.size };
-
-    const loaded = await loadKeapOrders({ augSet, sepSet });
-    keapTruncated = loaded.truncated;
-
-    // De-dup only against real web-channel OTW registrations (completed + dated),
-    // mirroring what buildReport counts — NOT every session in this shared Stripe
-    // account. An abandoned checkout or an unrelated product purchase must not
-    // suppress a genuine Keap/Woo order by the same person.
-    const stripeHashes = new Set(
-      annotated
-        .filter(
-          (s) =>
-            s.status === 'complete' &&
-            (s.metadata?.date === 'august' || s.metadata?.date === 'september')
-        )
-        .map((s) => s.emailHash)
-        .filter(Boolean)
-    );
-    const deduped = dedupeKeapOrders(loaded.orders, stripeHashes);
-    overlapCount = deduped.overlapCount;
-    keapReport = buildKeapReport(deduped.orders);
-  } catch (err) {
-    keapError = err instanceof Error ? err.message : String(err);
-    console.error('[results] Keap channel unavailable:', keapError);
-  }
-
-  const report = combineChannels(stripeReport, keapReport, tagCounts, overlapCount);
+  // Keap (roster + Woo revenue) degrades gracefully: if it is unreachable or
+  // rate-limited AND we have no cached data, still serve the web channel rather
+  // than 502. The render surfaces a banner and marks the roster/Woo unavailable.
+  const keap = await loadKeap(annotated);
+  const report = combineChannels(stripeReport, keap.keapReport, keap.tagCounts, keap.overlapCount);
 
   reportCache = {
     at: Date.now(),
     report,
-    truncated: truncated || keapTruncated,
+    truncated,
     unattributedRefundedCents,
-    keapError,
+    keapError: keap.error,
+    keapStale: keap.stale,
   };
   return reportCache;
 }
@@ -759,6 +791,7 @@ export default async function handler(req, res) {
           maxSessions: MAX_SESSIONS,
           unattributedRefundedCents: entry.unattributedRefundedCents,
           keapError: entry.keapError,
+          keapStale: entry.keapStale,
         })
       );
     }
