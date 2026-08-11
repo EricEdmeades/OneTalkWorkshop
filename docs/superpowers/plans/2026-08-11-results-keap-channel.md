@@ -447,6 +447,28 @@ describe('renderRegistrationsPage — two channels', () => {
     const html = renderRegistrationsPage(combined(), opts());
     expect(html).toContain('Web checkout by code');
   });
+
+  it('shows the Keap/Woo refund line when Keap refunds were netted', () => {
+    expect(renderRegistrationsPage(combined(), opts())).toContain('refunded and netted');
+  });
+
+  it('omits the Keap/Woo refund line when there were no Keap refunds', () => {
+    expect(renderRegistrationsPage(combined({ keapRefundCents: 0 }), opts())).not.toContain('refunded and netted');
+  });
+
+  it('shows the orphan line only when a plan exists and refunds are unmatched', () => {
+    const html = renderRegistrationsPage(combined({ planRegistrations: 1 }), opts({ unattributedRefundedCents: 190800 }));
+    expect(html).toContain("weren't matched");
+    expect(html).toContain('$1,908');
+  });
+
+  it('omits the orphan line when there is no payment plan', () => {
+    expect(renderRegistrationsPage(combined(), opts({ unattributedRefundedCents: 190800 }))).not.toContain("weren't matched");
+  });
+
+  it('omits the orphan line when nothing is unmatched', () => {
+    expect(renderRegistrationsPage(combined({ planRegistrations: 1 }), opts({ unattributedRefundedCents: 0 }))).not.toContain("weren't matched");
+  });
 });
 ```
 
