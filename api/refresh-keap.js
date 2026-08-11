@@ -13,11 +13,23 @@
 
 import { refreshKeapSnapshot } from '../lib/keap-refresh.js';
 
-// Four tries, fifteen seconds apart: at most ~4 Keap calls spread over 45s,
+// Cap the function well below the platform's 300s default. The first
+// production run hit that ceiling and returned a 504 — with no per-request
+// timeout, one unanswered Keap connection consumed the entire budget and the
+// retry loop never ran. Failing at 120s instead means a bad run ends quickly
+// and cheaply, and the next tick is only minutes away.
+export const config = { maxDuration: 120 };
+
+// Four tries, fifteen seconds apart: at most ~4 Keap calls spread over ~45s,
 // which is a rounding error against the 240/min bucket but four separate
-// chances to land in a quiet window. Well inside the function time limit.
+// chances to land in a quiet window. With the 12s per-request timeout in
+// lib/keap-api.js, the worst realistic case stays inside DEADLINE_MS.
 const ATTEMPTS = 4;
 const SPACING_MS = 15_000;
+
+// Stop starting new attempts past this, leaving headroom under maxDuration for
+// the final attempt to finish and the snapshot to be written.
+const DEADLINE_MS = 75_000;
 
 // Guards against a double-fired cron doing the work twice. Comfortably below
 // the 10-minute schedule.
@@ -48,6 +60,7 @@ export default async function handler(req, res) {
     attempts: ATTEMPTS,
     spacingMs: SPACING_MS,
     minIntervalMs: MIN_INTERVAL_MS,
+    deadlineMs: DEADLINE_MS,
     reason: 'cron',
   });
 

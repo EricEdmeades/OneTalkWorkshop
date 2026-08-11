@@ -97,6 +97,25 @@ primary refresher.)
 **Env var changes only take effect on a new deployment**, so these needed a redeploy
 to reach the running functions.
 
+## Post-deploy fix: the first cron run 504'd at 300s
+
+`keapFetch` had no request timeout. The 18:10 cron met a Keap connection that
+never answered, burned the platform's entire 300s budget, returned a 504 and
+stored nothing — the retry loop never ran, so the "four chances" design did
+nothing at all. Fixed by:
+
+- a **12s `AbortSignal.timeout`** on every Keap request (`KeapTimeoutError`,
+  marked `retryable` alongside `KeapThrottleError`);
+- **`maxDuration: 120`** on `api/refresh-keap.js` and a **75s deadline** that
+  stops new attempts, so a bad run ends cheaply and the next tick retries;
+- `reason: 'deadline'` vs `'throttled'` reported honestly, since conflating them
+  is what let a 300s hang look like ordinary rate limiting.
+
+Confirmed the same run that the **opportunistic path works end to end**: an
+18:14 page view logged `Keap throttled all 1 attempt(s) (page-view)` and served
+`200`. That line is only reachable if `isBlobConfigured()` returned true, so
+OIDC Blob auth, the read, the write and the graceful degradation are all proven.
+
 ## Verified numbers (to reconcile against once the snapshot populates)
 
 - Keap roster: **Aug tag 2008 = 211, Sep tag 1825 = 130/131** (≈342).
