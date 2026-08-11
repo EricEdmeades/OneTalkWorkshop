@@ -653,6 +653,17 @@ const MAX_KEAP_ORDER_PAGES = 60;
 function keapHeaders() {
   return { 'X-Keap-API-Key': process.env.KEAP_API_KEY, Accept: 'application/json' };
 }
+
+// Keap throttles bursts of requests; retry a 429 a few times with backoff so a
+// transient rate-limit doesn't 502 the whole report.
+async function keapFetch(url) {
+  for (let attempt = 0; ; attempt++) {
+    const res = await fetch(url, { headers: keapHeaders() });
+    if (res.status !== 429 || attempt >= 4) return res;
+    const retryAfter = Number(res.headers.get('retry-after')) || 2 ** attempt;
+    await new Promise((r) => setTimeout(r, retryAfter * 1000));
+  }
+}
 ```
 
 - [ ] **Step 2: Record the Stripe buyer email hash on each session**
@@ -675,10 +686,12 @@ async function loadKeapTagMembers(tag) {
   const ids = new Set();
   let url = `${KEAP_BASE_V1}/tags/${tag}/contacts?limit=1000`;
   while (url) {
-    const res = await fetch(url, { headers: keapHeaders() });
+    const res = await keapFetch(url);
     if (!res.ok) throw new Error(`Keap tag members ${tag}: ${res.status}`);
     const body = await res.json();
-    for (const c of body.contacts || []) if (c?.id != null) ids.add(c.id);
+    // Tag-member items are shaped { contact: {...}, date_applied } — the id is
+    // at c.contact.id, NOT c.id.
+    for (const c of body.contacts || []) if (c?.contact?.id != null) ids.add(c.contact.id);
     url = body.next || null;
   }
   return ids;
@@ -700,7 +713,7 @@ async function loadKeapOrders({ augSet, sepSet }) {
       break;
     }
     pages += 1;
-    const res = await fetch(url, { headers: keapHeaders() });
+    const res = await keapFetch(url);
     if (!res.ok) throw new Error(`Keap orders: ${res.status}`);
     const body = await res.json();
 
@@ -770,7 +783,20 @@ async function loadRegistrations({ forceRefresh }) {
   );
 
   const { orders: keapOrdersRaw, truncated: keapTruncated } = await loadKeapOrders({ augSet, sepSet });
-  const stripeHashes = new Set(annotated.map((s) => s.emailHash).filter(Boolean));
+  // De-dup only against real web-channel OTW registrations (completed + dated),
+  // mirroring what buildReport counts — NOT every session in this shared Stripe
+  // account. An abandoned checkout or an unrelated product purchase must not
+  // suppress a genuine Keap/Woo order by the same person.
+  const stripeHashes = new Set(
+    annotated
+      .filter(
+        (s) =>
+          s.status === 'complete' &&
+          (s.metadata?.date === 'august' || s.metadata?.date === 'september')
+      )
+      .map((s) => s.emailHash)
+      .filter(Boolean)
+  );
   const { orders: keapOrders, overlapCount } = dedupeKeapOrders(keapOrdersRaw, stripeHashes);
   const keapReport = buildKeapReport(keapOrders);
 
