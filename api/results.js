@@ -79,11 +79,15 @@ function keapHeaders() {
 async function keapFetch(url) {
   const res = await fetch(url, { headers: keapHeaders() });
   if (res.status === 429) {
+    const key = process.env.KEAP_API_KEY || '';
+    // Non-secret fingerprint so we can tell WHICH key production is running with
+    // vs a key tested locally — a one-way hash, never the key itself.
+    const fp = crypto.createHash('sha256').update(key).digest('hex').slice(0, 12);
     const h = {};
     res.headers.forEach((v, k) => {
       if (/^x-keap-.*(throttle|quota)/i.test(k)) h[k] = v;
     });
-    console.error('[results] Keap 429', JSON.stringify(h));
+    console.error('[results] Keap 429', 'keyfp', fp, 'keylen', key.length, JSON.stringify(h));
   }
   return res;
 }
