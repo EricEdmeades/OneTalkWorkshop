@@ -55,14 +55,10 @@ const KEAP_BASE_V1 = 'https://api.infusionsoft.com/crm/rest/v1';
 const KEAP_TAG_AUGUST = process.env.KEAP_TAG_ID_AUGUST || '2008';
 const KEAP_TAG_SEPTEMBER = process.env.KEAP_TAG_ID_SEPTEMBER || '1825';
 const KEAP_OTW_PRODUCT_ID = 49; // "One Talk Workshop"
-// Bounded scan of the Keap order log (newest first). OTW orders number a few
-// dozen; this cap only guards a runaway walk and is surfaced if hit.
+// The OTW orders are fetched with a server-side product filter, so this is just
+// a runaway-walk backstop — the real result is a single page.
 const MAX_KEAP_ORDER_PAGES = 60;
-// Stop paging the order log once orders predate the current cohort. Every OTW
-// registration (early through retail) postdates this; older orders are skipped
-// anyway. This is what keeps the scan from walking the whole 46-page log.
-const KEAP_ORDER_MIN_DATE = '2026-01-01';
-// Small delay between order pages so the scan stays under Keap's burst limit.
+// Small delay between order pages (only bites if OTW orders ever exceed one page).
 const KEAP_ORDER_PAGE_DELAY_MS = 350;
 
 function keapHeaders() {
@@ -349,20 +345,20 @@ async function loadKeapTagMembers(tag) {
   return ids;
 }
 
-// Walk the Keap order log (newest first) and project OTW orders whose contact
-// carries an Aug/Sep tag. netCents = (total + refund_total) — Keap stores
-// refund_total as a negative number.
+// Fetch the OTW orders and project those whose contact carries an Aug/Sep tag.
+// netCents = (total + refund_total) — Keap stores refund_total as a negative
+// number.
 //
-// Two things keep this from tripping Keap's burst rate limit (which 429s and,
-// after keapFetch's retries, would 502 the whole report): we STOP paging once
-// orders predate the current cohort (KEAP_ORDER_MIN_DATE — the workshop's own
-// registrations all postdate it, and older orders are skipped anyway), and we
-// PACE each page by a short delay. The full 46-page log scan was the throttle
-// trigger. `order_direction=descending` is what lets the date cutoff stop early.
+// The Keap order log is ~4,600 orders across every Speaker Nation product;
+// walking it page by page to find the ~31 OTW orders is what tripped Keap's
+// burst rate limit (429 → keapFetch retries exhausted → the report 502'd).
+// `product_id` filters server-side, so this returns ONLY the OTW-product orders
+// — a single page — turning the whole Keap flow into a handful of calls. Because
+// the filter guarantees the product, there is no per-item product check here.
 async function loadKeapOrders({ augSet, sepSet }) {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const orders = [];
-  let url = `${KEAP_BASE_V1}/orders?limit=100&order=date&order_direction=descending`;
+  let url = `${KEAP_BASE_V1}/orders?product_id=${KEAP_OTW_PRODUCT_ID}&limit=100&order=date&order_direction=descending`;
   let pages = 0;
   let truncated = false;
 
@@ -376,14 +372,8 @@ async function loadKeapOrders({ augSet, sepSet }) {
     const res = await keapFetch(url);
     if (!res.ok) throw new Error(`Keap orders: ${res.status}`);
     const body = await res.json();
-    const rows = body.orders || [];
 
-    for (const o of rows) {
-      const isOtw = (o.order_items || []).some(
-        (i) => i.product_id === KEAP_OTW_PRODUCT_ID || /one talk/i.test(i.name || '')
-      );
-      if (!isOtw) continue;
-
+    for (const o of body.orders || []) {
       const contactId = o.contact?.id ?? o.contact_id;
       // A contact in both sets is attributed to August deterministically (see
       // spec); expected count 0.
@@ -407,11 +397,6 @@ async function loadKeapOrders({ augSet, sepSet }) {
         emailHash: emailHash(o.contact?.email),
       });
     }
-
-    // Orders come newest-first, so once a page's oldest order predates the
-    // cohort we've seen every OTW order that could carry a current tag — stop.
-    const oldest = (rows.length ? rows[rows.length - 1].order_date : '') || '';
-    if (oldest.slice(0, 10) < KEAP_ORDER_MIN_DATE) break;
 
     url = body.next || null;
     if (url) await sleep(KEAP_ORDER_PAGE_DELAY_MS);
