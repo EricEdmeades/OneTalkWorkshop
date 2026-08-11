@@ -24,6 +24,7 @@
 import crypto from 'node:crypto';
 import Stripe from 'stripe';
 import { buildReport } from '../lib/results.js';
+import { annotateRefunds } from '../lib/refunds.js';
 import { buildFeedbackReport } from '../lib/survey.js';
 import { renderMessage } from '../lib/report-chrome.js';
 import { renderRegistrationsPage } from '../lib/registrations-render.js';
@@ -41,6 +42,12 @@ const REALM = 'One Talk Workshop results';
 // hitting it is surfaced on the page rather than silently truncating.
 const MAX_SESSIONS = 25000;
 
+// Refunds are few (dozens at most); this cap only guards against a runaway walk.
+const MAX_REFUNDS = 5000;
+
+// A Stripe reference field is either the id string or the expanded object.
+const stripeId = (ref) => (typeof ref === 'string' ? ref : ref?.id ?? null);
+
 // The Stripe walk is ~25 sequential paged requests (cursor pagination cannot
 // be parallelised), which measured ~35s against the live account. Cache the
 // finished report in module scope: Fluid Compute reuses instances, so repeat
@@ -48,7 +55,7 @@ const MAX_SESSIONS = 25000;
 // walk — this trades staleness for speed, never correctness, and every page
 // states how old the figures are. `?refresh=1` forces a fresh read.
 const CACHE_TTL_MS = 5 * 60 * 1000;
-let reportCache = null; // { at: number, report, truncated }
+let reportCache = null; // { at: number, report, truncated, unattributedRefundedCents }
 
 // Feedback lives in Airtable and is small, so it is read live per view. The
 // survey page must never show yesterday's numbers on the evening of a
@@ -249,10 +256,46 @@ async function loadSessions() {
       amount_total: session.amount_total,
       metadata: { date: session.metadata?.date },
       discounts: session.discounts,
+      // IO-only: used to join refunds in lib/refunds.js, then stripped there
+      // before buildReport or any render sees the session.
+      paymentIntentId: stripeId(session.payment_intent),
     });
   }
 
   return { sessions, truncated };
+}
+
+// Walk every refund once and index the SUCCEEDED ones by payment_intent. The
+// checkout session carries the same payment_intent for a one-time payment, so
+// lib/refunds.js can net the refund against that registration. Subscription
+// installment refunds do not share the session's payment_intent (it is null in
+// subscription mode) and so are not matched here by design — the orphan guard
+// on the report surfaces them for manual handling (see the design spec).
+//
+// totalCents is EVERY succeeded refund in the account (including other
+// products); the report subtracts what it managed to attribute to get the
+// unattributed figure the orphan line reports.
+async function loadRefundIndex() {
+  const byPaymentIntent = new Map();
+  let totalCents = 0;
+  let seen = 0;
+
+  for await (const refund of stripe.refunds.list({ limit: 100 })) {
+    if (seen >= MAX_REFUNDS) {
+      console.error('[results] refund walk hit MAX_REFUNDS cap; unattributed refund figure may be incomplete');
+      break;
+    }
+    seen += 1;
+    if (refund.status && refund.status !== 'succeeded') continue;
+    const amount = Number.isFinite(refund.amount) ? refund.amount : 0;
+    if (amount <= 0) continue;
+
+    totalCents += amount;
+    const pi = stripeId(refund.payment_intent);
+    if (pi) byPaymentIntent.set(pi, (byPaymentIntent.get(pi) || 0) + amount);
+  }
+
+  return { byPaymentIntent, totalCents };
 }
 
 async function loadRegistrations({ forceRefresh }) {
@@ -260,12 +303,23 @@ async function loadRegistrations({ forceRefresh }) {
     !forceRefresh && reportCache && Date.now() - reportCache.at < CACHE_TTL_MS ? reportCache : null;
   if (cached) return cached;
 
-  // Codes and sessions are independent lookups — fetch them concurrently.
-  const [promoNames, { sessions, truncated }] = await Promise.all([
+  // Codes, sessions and refunds are independent lookups — fetch concurrently.
+  const [promoNames, { sessions, truncated }, refundIndex] = await Promise.all([
     loadCodeNames(),
     loadSessions(),
+    loadRefundIndex(),
   ]);
-  reportCache = { at: Date.now(), report: buildReport(sessions, promoNames), truncated };
+
+  const annotated = annotateRefunds(sessions, refundIndex.byPaymentIntent);
+  const report = buildReport(annotated, promoNames);
+  // Every succeeded refund minus what the report netted = refunds we could not
+  // tie to a counted registration (payment-plan refunds, other products).
+  const unattributedRefundedCents = Math.max(
+    0,
+    refundIndex.totalCents - report.totals.refundedCents
+  );
+
+  reportCache = { at: Date.now(), report, truncated, unattributedRefundedCents };
   return reportCache;
 }
 
@@ -539,6 +593,7 @@ export default async function handler(req, res) {
           truncated: entry.truncated,
           fetchedAt: entry.at,
           maxSessions: MAX_SESSIONS,
+          unattributedRefundedCents: entry.unattributedRefundedCents,
         })
       );
     }
