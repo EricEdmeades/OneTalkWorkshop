@@ -31,9 +31,17 @@ const SPACING_MS = 15_000;
 // the final attempt to finish and the snapshot to be written.
 const DEADLINE_MS = 75_000;
 
-// Guards against a double-fired cron doing the work twice. Comfortably below
-// the 10-minute schedule.
-const MIN_INTERVAL_MS = 60_000;
+// Only guards against a genuinely double-fired cron; the schedule itself is
+// what paces this job.
+//
+// It must stay SMALL. The pacing marker is shared with the opportunistic
+// page-view path in api/results.js, and at 60s an operator refreshing /results
+// while waiting for figures would land inside this window and make the cron skip
+// entirely — the patient 4-attempt refresher would never run, leaving only the
+// single-attempt page-view path, which usually loses. Watching the page stopped
+// it from working. The marker exists to pace opportunistic attempts, not to
+// second-guess the scheduler.
+const MIN_INTERVAL_MS = 5_000;
 
 export default async function handler(req, res) {
   res.setHeader('Cache-Control', 'private, no-store, max-age=0');
@@ -63,6 +71,17 @@ export default async function handler(req, res) {
     deadlineMs: DEADLINE_MS,
     reason: 'cron',
   });
+
+  // ALWAYS leave a trace. Several outcomes (backed-off, blob-not-configured,
+  // keap-key-missing) return early and used to log nothing, so a run that did
+  // no work was indistinguishable in the logs from one that never fired at all
+  // — a 200 with total silence. That cost an entire debugging cycle chasing a
+  // cron that was in fact running and deliberately skipping.
+  console.log(
+    `[refresh-keap] cron run: ok=${result.ok} reason=${result.reason ?? 'none'}${
+      result.snapshot ? ` aug=${result.snapshot.tagCounts.august} sep=${result.snapshot.tagCounts.september}` : ''
+    }`
+  );
 
   return res.status(200).json({
     ok: result.ok,

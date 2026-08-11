@@ -74,12 +74,21 @@ let reportCache = null; // { at: number, report, truncated, unattributedRefunded
 // an hour of drift costs nothing.
 const KEAP_TTL_MS = 30 * 60 * 1000;
 
-// The opportunistic path is a safety net for the case where the cron cannot run
-// often enough, not a second fetching strategy. It takes ONE gentle attempt and
-// only if no attempt at all has been made in this window — the marker lives in
-// Blob, so the interval holds across instances and deploys rather than resetting
-// with every cold start the way the old in-memory backoff did.
+// The opportunistic path is a safety net for a cron that has stopped working —
+// not a second fetching strategy, and not part of normal operation. It takes ONE
+// gentle attempt, and only if no attempt has been made in this window; the
+// marker lives in Blob, so the interval holds across instances and deploys
+// rather than resetting on every cold start the way the old in-memory backoff
+// did.
 const KEAP_OPPORTUNISTIC_MIN_INTERVAL_MS = 5 * 60 * 1000;
+
+// Deliberately far beyond KEAP_TTL_MS. With the cron refreshing every 10
+// minutes, a snapshot this old means the cron itself is broken — which is the
+// only case worth paying for on a page load. Triggering merely because the
+// snapshot passed its 30-minute freshness label would put up to three sequential
+// Keap requests (each with a 12s ceiling) in front of the operator on an
+// ordinary view, for data the cron was about to refresh anyway.
+const KEAP_OPPORTUNISTIC_STALE_MS = 90 * 60 * 1000;
 
 // Feedback lives in Airtable and is small, so it is read live per view. The
 // survey page must never show yesterday's numbers on the evening of a
@@ -342,11 +351,10 @@ async function loadRefundIndex() {
 async function loadKeap(annotated) {
   let snapshot = await readSnapshot();
 
-  // Safety net for the case where the cron cannot run often enough. One gentle
-  // attempt, globally paced by the Blob marker — and only when the snapshot has
-  // actually aged out, so the common path stays a pure Blob read with no Keap
-  // call at all. A throttled attempt costs one fast 429 and changes nothing.
-  if (isStale(snapshot, KEAP_TTL_MS)) {
+  // Safety net only: no snapshot at all (first run after deploy) or one so old
+  // the cron must be broken. In normal operation this never fires, so the page
+  // path is a pure Blob read with no Keap call whatsoever.
+  if (isStale(snapshot, KEAP_OPPORTUNISTIC_STALE_MS)) {
     const refreshed = await refreshKeapSnapshot({
       attempts: 1,
       minIntervalMs: KEAP_OPPORTUNISTIC_MIN_INTERVAL_MS,
