@@ -58,6 +58,12 @@ const KEAP_OTW_PRODUCT_ID = 49; // "One Talk Workshop"
 // Bounded scan of the Keap order log (newest first). OTW orders number a few
 // dozen; this cap only guards a runaway walk and is surfaced if hit.
 const MAX_KEAP_ORDER_PAGES = 60;
+// Stop paging the order log once orders predate the current cohort. Every OTW
+// registration (early through retail) postdates this; older orders are skipped
+// anyway. This is what keeps the scan from walking the whole 46-page log.
+const KEAP_ORDER_MIN_DATE = '2026-01-01';
+// Small delay between order pages so the scan stays under Keap's burst limit.
+const KEAP_ORDER_PAGE_DELAY_MS = 350;
 
 function keapHeaders() {
   return { 'X-Keap-API-Key': process.env.KEAP_API_KEY, Accept: 'application/json' };
@@ -346,7 +352,15 @@ async function loadKeapTagMembers(tag) {
 // Walk the Keap order log (newest first) and project OTW orders whose contact
 // carries an Aug/Sep tag. netCents = (total + refund_total) — Keap stores
 // refund_total as a negative number.
+//
+// Two things keep this from tripping Keap's burst rate limit (which 429s and,
+// after keapFetch's retries, would 502 the whole report): we STOP paging once
+// orders predate the current cohort (KEAP_ORDER_MIN_DATE — the workshop's own
+// registrations all postdate it, and older orders are skipped anyway), and we
+// PACE each page by a short delay. The full 46-page log scan was the throttle
+// trigger. `order_direction=descending` is what lets the date cutoff stop early.
 async function loadKeapOrders({ augSet, sepSet }) {
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const orders = [];
   let url = `${KEAP_BASE_V1}/orders?limit=100&order=date&order_direction=descending`;
   let pages = 0;
@@ -362,8 +376,9 @@ async function loadKeapOrders({ augSet, sepSet }) {
     const res = await keapFetch(url);
     if (!res.ok) throw new Error(`Keap orders: ${res.status}`);
     const body = await res.json();
+    const rows = body.orders || [];
 
-    for (const o of body.orders || []) {
+    for (const o of rows) {
       const isOtw = (o.order_items || []).some(
         (i) => i.product_id === KEAP_OTW_PRODUCT_ID || /one talk/i.test(i.name || '')
       );
@@ -393,7 +408,13 @@ async function loadKeapOrders({ augSet, sepSet }) {
       });
     }
 
+    // Orders come newest-first, so once a page's oldest order predates the
+    // cohort we've seen every OTW order that could carry a current tag — stop.
+    const oldest = (rows.length ? rows[rows.length - 1].order_date : '') || '';
+    if (oldest.slice(0, 10) < KEAP_ORDER_MIN_DATE) break;
+
     url = body.next || null;
+    if (url) await sleep(KEAP_ORDER_PAGE_DELAY_MS);
   }
 
   return { orders, truncated };
@@ -404,20 +425,12 @@ async function loadRegistrations({ forceRefresh }) {
     !forceRefresh && reportCache && Date.now() - reportCache.at < CACHE_TTL_MS ? reportCache : null;
   if (cached) return cached;
 
-  // Stripe (web) and Keap (roster + Woo) are independent — fetch concurrently.
-  const [promoNames, { sessions, truncated }, refundIndex, augSet, sepSet] =
-    await Promise.all([
-      loadCodeNames(),
-      loadSessions(),
-      loadRefundIndex(),
-      loadKeapTagMembers(KEAP_TAG_AUGUST),
-      loadKeapTagMembers(KEAP_TAG_SEPTEMBER),
-    ]);
-
-  // A contact tagged for both dates (expected: none) counts toward both dates'
-  // headcount here, while its Woo revenue is attributed to August only.
-  // The tag-member set size IS the roster headcount for that date.
-  const tagCounts = { august: augSet.size, september: sepSet.size };
+  // The Stripe (web) channel is the report's backbone — fetch it first.
+  const [promoNames, { sessions, truncated }, refundIndex] = await Promise.all([
+    loadCodeNames(),
+    loadSessions(),
+    loadRefundIndex(),
+  ]);
 
   const annotated = annotateRefunds(sessions, refundIndex.byPaymentIntent);
   const stripeReport = buildReport(annotated, promoNames);
@@ -426,23 +439,49 @@ async function loadRegistrations({ forceRefresh }) {
     refundIndex.totalCents - stripeReport.totals.refundedCents
   );
 
-  const { orders: keapOrdersRaw, truncated: keapTruncated } = await loadKeapOrders({ augSet, sepSet });
-  // De-dup only against real web-channel OTW registrations (completed + dated),
-  // mirroring what buildReport counts — NOT every session in this shared Stripe
-  // account. An abandoned checkout or an unrelated product purchase must not
-  // suppress a genuine Keap/Woo order by the same person.
-  const stripeHashes = new Set(
-    annotated
-      .filter(
-        (s) =>
-          s.status === 'complete' &&
-          (s.metadata?.date === 'august' || s.metadata?.date === 'september')
-      )
-      .map((s) => s.emailHash)
-      .filter(Boolean)
-  );
-  const { orders: keapOrders, overlapCount } = dedupeKeapOrders(keapOrdersRaw, stripeHashes);
-  const keapReport = buildKeapReport(keapOrders);
+  // Keap (roster + Woo revenue) degrades gracefully: if Keap is unreachable or
+  // rate-limited, still serve the web channel rather than 502 the whole report.
+  // The render surfaces a loud banner and marks the roster / Woo figures as
+  // unavailable — visibly incomplete beats a blank error page.
+  let tagCounts = null;
+  let keapReport = buildKeapReport([]);
+  let overlapCount = 0;
+  let keapTruncated = false;
+  let keapError = null;
+  try {
+    const [augSet, sepSet] = await Promise.all([
+      loadKeapTagMembers(KEAP_TAG_AUGUST),
+      loadKeapTagMembers(KEAP_TAG_SEPTEMBER),
+    ]);
+    // A contact tagged for both dates (expected: none) counts toward both dates'
+    // headcount here, while its Woo revenue is attributed to August only.
+    // The tag-member set size IS the roster headcount for that date.
+    tagCounts = { august: augSet.size, september: sepSet.size };
+
+    const loaded = await loadKeapOrders({ augSet, sepSet });
+    keapTruncated = loaded.truncated;
+
+    // De-dup only against real web-channel OTW registrations (completed + dated),
+    // mirroring what buildReport counts — NOT every session in this shared Stripe
+    // account. An abandoned checkout or an unrelated product purchase must not
+    // suppress a genuine Keap/Woo order by the same person.
+    const stripeHashes = new Set(
+      annotated
+        .filter(
+          (s) =>
+            s.status === 'complete' &&
+            (s.metadata?.date === 'august' || s.metadata?.date === 'september')
+        )
+        .map((s) => s.emailHash)
+        .filter(Boolean)
+    );
+    const deduped = dedupeKeapOrders(loaded.orders, stripeHashes);
+    overlapCount = deduped.overlapCount;
+    keapReport = buildKeapReport(deduped.orders);
+  } catch (err) {
+    keapError = err instanceof Error ? err.message : String(err);
+    console.error('[results] Keap channel unavailable:', keapError);
+  }
 
   const report = combineChannels(stripeReport, keapReport, tagCounts, overlapCount);
 
@@ -451,6 +490,7 @@ async function loadRegistrations({ forceRefresh }) {
     report,
     truncated: truncated || keapTruncated,
     unattributedRefundedCents,
+    keapError,
   };
   return reportCache;
 }
@@ -733,6 +773,7 @@ export default async function handler(req, res) {
           fetchedAt: entry.at,
           maxSessions: MAX_SESSIONS,
           unattributedRefundedCents: entry.unattributedRefundedCents,
+          keapError: entry.keapError,
         })
       );
     }
