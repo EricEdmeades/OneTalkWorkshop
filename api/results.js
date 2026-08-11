@@ -72,7 +72,18 @@ function keapHeaders() {
 async function keapFetch(url) {
   for (let attempt = 0; ; attempt++) {
     const res = await fetch(url, { headers: keapHeaders() });
-    if (res.status !== 429 || attempt >= 2) return res;
+    if (res.status !== 429 || attempt >= 2) {
+      if (res.status === 429) {
+        // TEMP diagnostic: which Keap limit is production actually hitting? The
+        // x-keap-* headers report per-key (product) and account (tenant) usage.
+        const h = {};
+        res.headers.forEach((v, k) => {
+          if (/^x-keap-.*(throttle|quota)/i.test(k) || k === 'retry-after') h[k] = v;
+        });
+        console.error('[results] Keap 429 diagnostic', JSON.stringify(h));
+      }
+      return res;
+    }
     const retryAfter = Number(res.headers.get('retry-after')) || 2 ** attempt;
     await new Promise((r) => setTimeout(r, retryAfter * 1000));
   }
