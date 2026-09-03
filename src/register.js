@@ -25,21 +25,19 @@ function renderCard(card) {
 
   const tierLabelEl = card.querySelector('.price-label');
   const amountEl = card.querySelector('.price-now .amount');
-  const detailEl = card.querySelector('.price-detail');
 
   tierLabelEl.textContent = tier === 'early' ? 'Early Registration' : 'Retail Registration';
   amountEl.innerHTML = tier === 'early'
     ? `${price.full}<span class="was">$${PRICES.retail.full}</span>`
     : `${price.full}`;
-  detailEl.textContent = `or 2 payments of $${price.plan} ($${price.planTotal} total)`;
 
   // A sold-out card still shows what the workshop cost, but its buttons keep
   // their "Sold Out" labels rather than being relabelled as live offers.
   if (card.classList.contains('is-sold-out')) return;
 
-  card.querySelectorAll('button[data-plan]').forEach((btn) => {
-    const plan = btn.dataset.plan;
-    btn.textContent = plan === 'full' ? `Pay in Full — $${price.full}` : `2 Payments of $${price.plan}`;
+  // The 2-payment plan is hidden — only the pay-in-full button is offered.
+  card.querySelectorAll('button[data-plan="full"]').forEach((btn) => {
+    btn.textContent = `Pay in Full — $${price.full}`;
   });
 }
 
@@ -53,7 +51,7 @@ function renderSeatNotice(card, text) {
   if (!el) {
     el = document.createElement('p');
     el.className = 'seat-notice';
-    const anchor = card.querySelector('.price-detail');
+    const anchor = card.querySelector('.price-block');
     if (anchor) anchor.insertAdjacentElement('afterend', el);
     else card.prepend(el);
   }
