@@ -504,34 +504,45 @@
   </div>
 </section>
 
-<!-- ================= DATES ================= -->
-<section class="offer sect-pad" id="dates">
-  <div class="wrap">
-    <div class="offer-inner">
-      <span class="eyebrow">Choose Your Date</span>
-      <h2>Two dates. One workshop. Pick what works for you.</h2>
+<!-- ================= WAITLIST ================= -->
+<section class="offer sect-pad" id="waitlist">
+  <div class="wrap-narrow">
+    <div class="sect-head">
+      <span class="eyebrow">The Next Cohort</span>
+      <h2>New dates are coming. Be first in line.</h2>
+      <p class="lead">Registration for the next One Talk Workshop isn't open yet. Join the waitlist and we'll email you the moment it is — before it goes public.</p>
     </div>
-    <div class="date-cards" style="margin-top:40px;">
-      <!-- August is sold out (lib/seats.js FORCED_SOLD_OUT_DATES). Rendered
-           sold-out in the markup so it never flashes as available before
-           src/date-cards.js runs; that module greys the card once the
-           workshop has finished and leaves it on the page. -->
-      <div class="day-card is-sold-out" data-date="august" style="align-items:center; text-align:center; padding:32px;">
-        <h3 style="margin-top:0;">August 7–9, 2026</h3>
-        <p style="opacity:0.75; margin-bottom:24px;">Live online · 10am–2pm Eastern each day</p>
-        <p class="seat-notice">Sold out</p>
-        <span class="btn-primary is-disabled" aria-disabled="true">Sold Out</span>
+    <form class="lead-form" data-form="waitlist" action="/api/waitlist-otw" method="post" novalidate>
+      <div class="lead-row">
+        <div class="lead-field">
+          <label for="wl-firstname" class="sr-only">First name</label>
+          <input id="wl-firstname" name="firstName" type="text" required placeholder="First name" autocomplete="given-name">
+        </div>
+        <div class="lead-field">
+          <label for="wl-lastname" class="sr-only">Last name</label>
+          <input id="wl-lastname" name="lastName" type="text" required placeholder="Last name" autocomplete="family-name">
+        </div>
       </div>
-      <div class="day-card" data-date="september" style="align-items:center; text-align:center; padding:32px;">
-        <h3 style="margin-top:0;">September 18–20, 2026</h3>
-        <p style="opacity:0.75; margin-bottom:24px;">Live online · 10am–2pm Eastern each day</p>
-        <a href="/register.html#september" class="btn-primary" data-cta="dates_september">
-          Reserve My Seat
-          <span class="arrow">→</span>
-        </a>
+      <div class="lead-field lead-field-full">
+        <label for="wl-email" class="sr-only">Email address</label>
+        <input id="wl-email" name="email" type="email" required placeholder="your@email.com" autocomplete="email">
       </div>
-    </div>
-    <p class="lead-micro" style="text-align:center; margin-top:2rem;">Full pricing and payment-plan details are on the registration page.</p>
+      <label class="lead-consent">
+        <input id="wl-consent" name="consent" type="checkbox" value="yes" required>
+        <span>Yes, email me when registration opens and about The One Talk Workshop. I can unsubscribe at any time.</span>
+      </label>
+      <div class="lead-hp" aria-hidden="true">
+        <label for="wl-website">Website (leave blank)</label>
+        <input id="wl-website" name="website" type="text" tabindex="-1" autocomplete="off">
+      </div>
+      <input type="hidden" name="formStartedAt" value="">
+      <button type="submit" class="btn-primary lead-submit">
+        Join the Waitlist
+        <span class="arrow">→</span>
+      </button>
+      <p class="lead-error" role="alert" aria-live="polite"></p>
+    </form>
+    <p class="lead-micro" style="text-align:center;">We'll only email you about registration. Unsubscribe anytime.</p>
   </div>
 </section>
 
