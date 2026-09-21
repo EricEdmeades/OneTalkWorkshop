@@ -10,7 +10,7 @@
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-function bindOptInForm(form, { endpoint, gaEvent, metaName, confirmHTML, requireConsent }) {
+function bindOptInForm(form, { endpoint, gaEvent, gaParams, metaName, confirmHTML, requireConsent }) {
   if (!form) return;
 
   const firstInput = form.querySelector('input[name="firstName"]');
@@ -95,7 +95,7 @@ function bindOptInForm(form, { endpoint, gaEvent, metaName, confirmHTML, require
       }
 
       if (typeof window.gtag === 'function') {
-        window.gtag('event', gaEvent, { form: metaName });
+        window.gtag('event', gaEvent, gaParams);
       }
       if (typeof window.fbq === 'function') {
         window.fbq('track', 'Lead', { content_name: metaName });
@@ -135,6 +135,7 @@ export function initLeadMagnetForm() {
   bindOptInForm(document.querySelector('[data-form="lead-magnet"]'), {
     endpoint: '/api/subscribe-otw',
     gaEvent: 'lead_magnet_submit',
+    gaParams: { lead_magnet: 'stage_fright' },
     metaName: 'stage_fright',
     confirmHTML:
       '<strong>You’re in.</strong>Check your email for the 5 Steps to Overcoming Stage Fright worksheet.',
@@ -146,6 +147,7 @@ export function initWaitlistForm() {
   bindOptInForm(document.querySelector('[data-form="waitlist"]'), {
     endpoint: '/api/waitlist-otw',
     gaEvent: 'waitlist_submit',
+    gaParams: { form: 'waitlist' },
     metaName: 'waitlist',
     confirmHTML:
       '<strong>You’re on the list.</strong>We’ll email you the moment registration reopens.',
