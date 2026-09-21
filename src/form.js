@@ -1,22 +1,23 @@
 // =============================================================================
-// Lead-magnet form handler
+// Opt-in form handlers
 // -----------------------------------------------------------------------------
-// Intercepts the "5 Steps to Overcoming Stage Fright" form, validates client-
-// side, POSTs JSON to /api/subscribe-otw, and swaps the form for a success
-// card on 200. Fires GA4 + Meta Pixel events on success.
+// One shared binder drives both opt-in forms on the site:
+//   - Lead magnet ("5 Steps to Overcoming Stage Fright") -> /api/subscribe-otw
+//   - Waitlist ("Join the Waitlist")                     -> /api/waitlist-otw
+// Each intercepts its form, validates client-side, POSTs JSON, and swaps the
+// form for a success card on 200. Fires GA4 + Meta Pixel events on success.
 // =============================================================================
 
-const ENDPOINT = '/api/subscribe-otw';
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-export function initLeadMagnetForm() {
-  const form = document.querySelector('[data-form="lead-magnet"]');
+function bindOptInForm(form, { endpoint, gaEvent, metaName, confirmHTML, requireConsent }) {
   if (!form) return;
 
   const firstInput = form.querySelector('input[name="firstName"]');
   const lastInput = form.querySelector('input[name="lastName"]');
   const emailInput = form.querySelector('input[name="email"]');
   const websiteInput = form.querySelector('input[name="website"]');
+  const consentInput = form.querySelector('input[name="consent"]');
   const startedAtInput = form.querySelector('input[name="formStartedAt"]');
   const submitBtn = form.querySelector('button[type="submit"]');
   const errorEl = form.querySelector('.lead-error');
@@ -26,13 +27,19 @@ export function initLeadMagnetForm() {
   // Stamp the form on render so the server can reject sub-3s submissions.
   if (startedAtInput) startedAtInput.value = String(Date.now());
 
-  // Clear aria-invalid state as the user types.
+  // Clear inline error state as the user edits.
   [firstInput, lastInput, emailInput].forEach((input) => {
     input.addEventListener('input', () => {
       input.removeAttribute('aria-invalid');
       if (errorEl) errorEl.textContent = '';
     });
   });
+  if (consentInput) {
+    consentInput.addEventListener('change', () => {
+      consentInput.removeAttribute('aria-invalid');
+      if (errorEl) errorEl.textContent = '';
+    });
+  }
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -40,11 +47,15 @@ export function initLeadMagnetForm() {
     const firstName = firstInput.value.trim();
     const lastName = lastInput.value.trim();
     const email = emailInput.value.trim();
+    const consent = consentInput ? consentInput.checked : true;
 
-    const invalid = validate({ firstName, lastName, email });
+    const invalid = validate({ firstName, lastName, email, consent, requireConsent });
     if (invalid) {
       showError(errorEl, invalid.message);
-      const field = form.querySelector(`input[name="${invalid.field}"]`);
+      const field =
+        invalid.field === 'consent'
+          ? consentInput
+          : form.querySelector(`input[name="${invalid.field}"]`);
       if (field) {
         field.setAttribute('aria-invalid', 'true');
         field.focus();
@@ -58,16 +69,19 @@ export function initLeadMagnetForm() {
     submitBtn.textContent = 'Sending…';
 
     try {
-      const res = await fetch(ENDPOINT, {
+      const payload = {
+        firstName,
+        lastName,
+        email,
+        website: websiteInput ? websiteInput.value : '',
+        formStartedAt: startedAtInput ? startedAtInput.value : '',
+      };
+      if (consentInput) payload.consent = consentInput.checked ? 'yes' : '';
+
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          firstName,
-          lastName,
-          email,
-          website: websiteInput ? websiteInput.value : '',
-          formStartedAt: startedAtInput ? startedAtInput.value : '',
-        }),
+        body: JSON.stringify(payload),
       });
 
       let data = {};
@@ -78,13 +92,13 @@ export function initLeadMagnetForm() {
       }
 
       if (typeof window.gtag === 'function') {
-        window.gtag('event', 'lead_magnet_submit', { lead_magnet: 'stage_fright' });
+        window.gtag('event', gaEvent, { form: metaName });
       }
       if (typeof window.fbq === 'function') {
-        window.fbq('track', 'Lead', { content_name: 'stage_fright' });
+        window.fbq('track', 'Lead', { content_name: metaName });
       }
 
-      swapForConfirmation(form);
+      swapForConfirmation(form, confirmHTML);
     } catch (err) {
       submitBtn.disabled = false;
       submitBtn.innerHTML = originalLabel;
@@ -93,10 +107,13 @@ export function initLeadMagnetForm() {
   });
 }
 
-function validate({ firstName, lastName, email }) {
+function validate({ firstName, lastName, email, consent, requireConsent }) {
   if (!firstName) return { field: 'firstName', message: 'Please enter your first name.' };
   if (!lastName) return { field: 'lastName', message: 'Please enter your last name.' };
   if (!EMAIL_RE.test(email)) return { field: 'email', message: 'Please enter a valid email address.' };
+  if (requireConsent && !consent) {
+    return { field: 'consent', message: "Please confirm you'd like to receive emails." };
+  }
   return null;
 }
 
@@ -104,10 +121,31 @@ function showError(el, text) {
   if (el) el.textContent = text;
 }
 
-function swapForConfirmation(form) {
+function swapForConfirmation(form, confirmHTML) {
   const confirm = document.createElement('div');
   confirm.className = 'lead-confirm';
-  confirm.innerHTML =
-    '<strong>You\u2019re in.</strong>Check your email for the 5 Steps to Overcoming Stage Fright worksheet.';
+  confirm.innerHTML = confirmHTML;
   form.replaceWith(confirm);
+}
+
+export function initLeadMagnetForm() {
+  bindOptInForm(document.querySelector('[data-form="lead-magnet"]'), {
+    endpoint: '/api/subscribe-otw',
+    gaEvent: 'lead_magnet_submit',
+    metaName: 'stage_fright',
+    confirmHTML:
+      '<strong>You’re in.</strong>Check your email for the 5 Steps to Overcoming Stage Fright worksheet.',
+    requireConsent: false,
+  });
+}
+
+export function initWaitlistForm() {
+  bindOptInForm(document.querySelector('[data-form="waitlist"]'), {
+    endpoint: '/api/waitlist-otw',
+    gaEvent: 'waitlist_submit',
+    metaName: 'waitlist',
+    confirmHTML:
+      '<strong>You’re on the list.</strong>We’ll email you the moment registration reopens.',
+    requireConsent: true,
+  });
 }
