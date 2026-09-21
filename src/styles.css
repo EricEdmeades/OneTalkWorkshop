@@ -242,14 +242,6 @@
   .btn-primary.dark { background: var(--black); }
   .btn-primary.dark:hover { background: var(--wine); }
 
-  .micro-assure {
-    margin-top: 18px;
-    font-size: 0.82rem;
-    color: var(--gray);
-    letter-spacing: 0.02em;
-  }
-  .micro-assure strong { color: var(--black); font-weight: 700; }
-
   .hero-meta {
     display: flex;
     flex-wrap: wrap;
