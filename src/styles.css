@@ -242,14 +242,6 @@
   .btn-primary.dark { background: var(--black); }
   .btn-primary.dark:hover { background: var(--wine); }
 
-  .micro-assure {
-    margin-top: 18px;
-    font-size: 0.82rem;
-    color: var(--gray);
-    letter-spacing: 0.02em;
-  }
-  .micro-assure strong { color: var(--black); font-weight: 700; }
-
   .hero-meta {
     display: flex;
     flex-wrap: wrap;
@@ -1298,6 +1290,31 @@
   }
   .lead-field { flex: 1; min-width: 0; }
   .lead-field-full { width: 100%; }
+  .lead-consent {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-top: 16px;
+    text-align: left;
+    font-size: 0.9rem;
+    line-height: 1.4;
+    opacity: 0.85;
+  }
+  .lead-consent input[type="checkbox"] {
+    margin-top: 3px;
+    width: 18px;
+    height: 18px;
+    flex: 0 0 auto;
+    accent-color: var(--wine, #E26320);
+    cursor: pointer;
+  }
+  .lead-consent span {
+    cursor: pointer;
+  }
+  .lead-consent input[aria-invalid="true"] {
+    outline: 2px solid #c0392b;
+    outline-offset: 2px;
+  }
   .lead-form input[type="text"],
   .lead-form input[type="email"] {
     width: 100%;

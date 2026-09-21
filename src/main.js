@@ -1,6 +1,6 @@
 import { initAnalytics } from './analytics.js';
 import { wrapHeadingWords } from './word-hover.js';
-import { initLeadMagnetForm } from './form.js';
+import { initLeadMagnetForm, initWaitlistForm } from './form.js';
 import { initTestimonialCarousel } from './testimonials.js';
 import { initAffiliateRef } from './affiliate-ref.js';
 import { initDateCards } from './date-cards.js';
@@ -10,6 +10,7 @@ function boot() {
   initAnalytics();
   initAffiliateRef();
   initLeadMagnetForm();
+  initWaitlistForm();
   initTestimonialCarousel();
   initDateCards();
 }

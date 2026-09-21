@@ -4,6 +4,10 @@
   "outputDirectory": "dist",
   "cleanUrls": true,
   "trailingSlash": false,
+  "redirects": [
+    { "source": "/register", "destination": "/#waitlist", "permanent": false },
+    { "source": "/register.html", "destination": "/#waitlist", "permanent": false }
+  ],
   "rewrites": [
     { "source": "/results", "destination": "/api/results" },
     { "source": "/results/:view", "destination": "/api/results?view=:view" }
