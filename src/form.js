@@ -47,7 +47,10 @@ function bindOptInForm(form, { endpoint, gaEvent, metaName, confirmHTML, require
     const firstName = firstInput.value.trim();
     const lastName = lastInput.value.trim();
     const email = emailInput.value.trim();
-    const consent = consentInput ? consentInput.checked : true;
+    // Fail closed: if a form that requires consent is somehow missing its
+    // checkbox, treat consent as absent rather than silently submitting an
+    // unconsented opt-in. Forms that don't require consent are unaffected.
+    const consent = consentInput ? consentInput.checked : !requireConsent;
 
     const invalid = validate({ firstName, lastName, email, consent, requireConsent });
     if (invalid) {
