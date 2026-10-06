@@ -1,4 +1,5 @@
 // Thank-you page: "Send it again" posts the email stored by the opt-in page.
+import './botid.js';
 import { initAnalytics } from '../analytics.js';
 import { STORAGE_KEY, resendFeedback } from './messages.js';
 

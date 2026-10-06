@@ -1,5 +1,6 @@
 // Opt-in page: stamps formStartedAt, validates, posts to /api/sol-optin, keeps
 // the email in sessionStorage for the thank-you page's resend button, navigates.
+import './botid.js';
 import { initAnalytics } from '../analytics.js';
 import { initAffiliateRef, getStoredRef } from '../affiliate-ref.js';
 import { STORAGE_KEY } from './messages.js';

@@ -1,6 +1,7 @@
 // Download page: the download button for a token link, or the fresh-link form
 // when the link is missing/expired. The button goes through /api/sol-download,
 // which verifies the token and redirects to a short-lived presigned PDF URL.
+import './botid.js';
 import { initAnalytics } from '../analytics.js';
 import { downloadState, resendFeedback, cleanDownloadUrl } from './messages.js';
 

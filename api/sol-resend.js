@@ -2,6 +2,7 @@
 // opted in (thank-you page button, expired-link form). Unknown addresses get a
 // silent success so this cannot be used to mail strangers or probe the list.
 import { isAllowedOrigin } from '../lib/spam-gates.js';
+import { isBotRequest } from '../lib/sol-bot.js';
 import { normaliseEmail, isValidEmail } from '../lib/sol-validate.js';
 import { checkRate } from '../lib/sol-ratelimit.js';
 import { readOptin, readRate } from '../lib/sol-store.js';
@@ -29,13 +30,14 @@ export default async function handler(req, res) {
     res.setHeader('Allow', 'POST');
     return res.status(405).json({ success: false, error: 'Method not allowed' });
   }
-  const missing = missingConfig();
+  // Resends never touch Keap, so Keap config must not be able to break them.
+  const missing = missingConfig(['RESEND_API_KEY', 'SOL_LINK_SECRET']);
   if (missing.length) {
     console.error(`[sol-resend] Missing config: ${missing.join(', ')}`);
     return res.status(500).json({ success: false, error: RETRY_COPY });
   }
-  if (!isAllowedOrigin(req.headers.origin || req.headers.referer || '')) {
-    console.warn('[sol-resend] Blocked: origin');
+  if (!isAllowedOrigin(req.headers.origin || req.headers.referer || '') || (await isBotRequest(req))) {
+    console.warn('[sol-resend] Blocked: origin or BotID');
     return res.status(200).json({ success: true });
   }
   const email = normaliseEmail(req.body?.email);
