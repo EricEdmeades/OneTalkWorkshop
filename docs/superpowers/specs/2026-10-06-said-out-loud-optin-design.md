@@ -66,9 +66,9 @@ Analytics: reuse `src/analytics.js`. Events: `sol_optin` (+ Meta `Lead`) on succ
 - The thank-you page gets the email from `sessionStorage`, set by the opt-in page on success.
 
 **`api/sol-download.js`** — `GET ?t=<token>`
-- Valid token → `302` to the PDF's Blob URL (`SOL_PDF_URL`, random unguessable suffix, `Content-Disposition` filename `Said-Out-Loud-Eric-Edmeades.pdf`).
+- Valid token → `302` to a **presigned Blob URL** for the private PDF (`issueSignedToken` + `presignUrl`, valid 5 minutes). Pathname `said-out-loud/Said-Out-Loud-Eric-Edmeades.pdf`.
 - Invalid / expired → `302` to `/said-out-loud/download?expired=1`.
-- Redirect instead of streaming because Vercel Function responses cap at ~4.5 MB and the PDF is 18.6 MB. Leakage trade-off accepted: a forwarded link works until it expires; the Blob URL cannot be guessed.
+- Redirect instead of streaming because Vercel Function responses cap at ~4.5 MB and the PDF is 18.6 MB. The project's Blob store is private (store-level access), so the PDF stays private too. Leakage trade-off accepted: a forwarded email link works until it expires (30 days); the presigned URL itself dies after 5 minutes.
 
 The download page's button points at `/api/sol-download?t=…`. The emailed link points at the download page (`/said-out-loud/download?t=…`), so the visitor lands on a branded page first.
 
@@ -111,7 +111,7 @@ Pending record shape (synthetic example):
 |---|---|
 | `RESEND_API_KEY` | From the speakernation project's Resend account (speakernation.com domain) |
 | `SOL_LINK_SECRET` | New, 32+ random bytes |
-| `SOL_PDF_URL` | Set after upload script runs |
+| `SOL_PUBLIC_BASE_URL` | Optional override for links in the email. Default: `https://onetalkworkshop.com` in production, `https://$VERCEL_BRANCH_URL` on previews, `http://localhost:3000` locally |
 | `KEAP_TAG_ID_SAID_OUT_LOUD` | Eric creates tag "Said Out Loud – ebook" in Keap |
 | `KEAP_API_KEY`, `CRON_SECRET`, Blob credentials | Already present. Blob may be `BLOB_STORE_ID` + OIDC **or** `BLOB_READ_WRITE_TOKEN`; reuse `isBlobConfigured()` from `lib/keap-store.js`, which accepts both |
 
@@ -120,7 +120,8 @@ Pending record shape (synthetic example):
 ### 3.5 PDF handling
 
 - Source: `OneTalkWorkshop/SaidOutLoud/Book.SaidOutLoud.EricEdmeades` (PDF 1.4, 18.6 MB, no extension). Add `SaidOutLoud/` to `.gitignore`.
-- `scripts/upload-sol-pdf.mjs <path>`: uploads to Blob as `said-out-loud/Said-Out-Loud-Eric-Edmeades.pdf` with `addRandomSuffix: true`, `contentType: application/pdf`, prints the URL to set as `SOL_PDF_URL`. Re-run to replace the book later.
+- `scripts/upload-sol-pdf.mjs <path>`: uploads to Blob as `said-out-loud/Said-Out-Loud-Eric-Edmeades.pdf` with `access: 'private'`, `addRandomSuffix: false`, `allowOverwrite: true`, `contentType: application/pdf`. The pathname is a constant in `lib/sol-pdf.js`, so no env var. Re-run to replace the book later.
+- The opt-in endpoint applies the same per-email rate limit before sending, so the form can't be used to flood someone's inbox; a rate-limited opt-in returns a silent success and skips Keap.
 - Optional later: compressed export (3–6 MB) for mobile. Not blocking.
 
 ## 4. Copy
@@ -237,7 +238,7 @@ TDD: tests written before each module.
 
 1. Eric creates Keap tag "Said Out Loud – ebook" and sends the ID.
 2. Confirm speakernation.com is verified in Resend; get `RESEND_API_KEY`.
-3. Run `scripts/upload-sol-pdf.mjs`, set `SOL_PDF_URL`.
+3. Run `scripts/upload-sol-pdf.mjs` against the production Blob store.
 4. Set `SOL_LINK_SECRET`, `KEAP_TAG_ID_SAID_OUT_LOUD`, `RESEND_API_KEY` in Vercel (Preview + Production).
 5. Preview QA (section 6) + Eric's review.
 6. Merge `feature/said-out-loud` → `main` → live at `onetalkworkshop.com/said-out-loud`.
