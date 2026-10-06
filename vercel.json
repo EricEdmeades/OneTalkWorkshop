@@ -12,7 +12,10 @@
     { "source": "/results", "destination": "/api/results" },
     { "source": "/results/:view", "destination": "/api/results?view=:view" }
   ],
-  "crons": [{ "path": "/api/refresh-keap", "schedule": "*/10 * * * *" }],
+  "crons": [
+    { "path": "/api/refresh-keap", "schedule": "*/10 * * * *" },
+    { "path": "/api/sol-sync-keap", "schedule": "5-59/10 * * * *" }
+  ],
   "headers": [
     {
       "source": "/assets/(.*)",
