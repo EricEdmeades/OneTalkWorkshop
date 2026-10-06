@@ -16,6 +16,8 @@
   },
   "dependencies": {
     "@vercel/blob": "^2.8.0",
+    "@vercel/functions": "^3.9.11",
+    "botid": "^1.5.11",
     "stripe": "^22.3.0"
   }
 }

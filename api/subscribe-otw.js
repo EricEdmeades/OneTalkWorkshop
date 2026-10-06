@@ -65,7 +65,7 @@ export default async function handler(req, res) {
     formStartedAt: body.formStartedAt,
   });
   if (spam) {
-    console.warn(`[subscribe-otw] Blocked: ${spam}`);
+    console.warn(`[subscribe-otw] Blocked: ${spam} (origin "${req.headers.origin || req.headers.referer || ''}", formStartedAt ${body.formStartedAt})`);
     return res.status(200).json({ success: true });
   }
 
