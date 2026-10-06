@@ -34,3 +34,6 @@ dist-ssr
 
 # superpowers brainstorming visual companion — local-only
 .superpowers/
+
+# Ebook source PDFs — uploaded to Blob by scripts/upload-sol-pdf.mjs, never committed
+SaidOutLoud/
