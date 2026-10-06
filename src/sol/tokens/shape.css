@@ -1,0 +1,20 @@
+:root {
+  /* Radius — soft, rounded geometry */
+  --site-rounded-sm: 8px;    /* inputs, small controls */
+  --site-rounded-md: 16px;   /* cards, media */
+  --site-rounded-lg: 24px;   /* feature panels, modals */
+  --site-rounded-full: 9999px; /* buttons, pills */
+
+  /* Elevation — essentially flat. One soft shadow, reserved for modals/dropdowns/sticky nav. */
+  --site-shadow-soft: 0 12px 32px -12px rgba(20,24,36,0.18);
+  --site-shadow-dropdown: 0 8px 24px -8px rgba(20,24,36,0.16);
+
+  /* Borders */
+  --site-border-width: 1px;
+
+  /* Motion — smooth, modern, warm */
+  --site-ease: cubic-bezier(0.22, 1, 0.36, 1); /* @kind other */
+  --site-duration-fast: 160ms; /* @kind other */
+  --site-duration: 240ms; /* @kind other */
+  --site-duration-slow: 320ms; /* @kind other */
+}

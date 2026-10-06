@@ -1,0 +1,50 @@
+/* Base element defaults built on the tokens. Consumers get sensible typography/colors for free. */
+body {
+  font-family: var(--site-font-body);
+  font-size: var(--site-font-size-base);
+  color: var(--site-text);
+  background: var(--site-background);
+  line-height: var(--site-leading-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--site-font-heading);
+  color: var(--site-text);
+  line-height: var(--site-leading-heading);
+  font-weight: var(--site-weight-semibold);
+  letter-spacing: var(--site-tracking-tight);
+  text-wrap: pretty;
+}
+a { color: var(--site-secondary); text-decoration: underline; text-underline-offset: 2px; transition: color var(--site-duration) var(--site-ease); }
+a:hover { color: var(--site-accent); }
+code, pre, kbd { font-family: var(--site-font-mono); }
+
+/* Stage section — dark "spotlight" block. Wrap any deliberate stage moment in this. */
+.section-stage { background: var(--site-primary); color: var(--site-text-on-dark); }
+.section-stage h1, .section-stage h2, .section-stage h3,
+.section-stage h4, .section-stage h5, .section-stage h6 { color: var(--site-text-on-dark); }
+.section-stage a { color: var(--site-text-on-dark); }
+.section-stage a:hover { color: var(--site-accent); }
+
+/* Display title — the strongest tier, above headings. Anton, uppercase, tight leading. */
+.site-display {
+  font-family: var(--site-font-display);
+  font-weight: 400;
+  line-height: var(--site-leading-display);
+  letter-spacing: var(--site-tracking-display);
+  text-transform: uppercase;
+  color: var(--site-text);
+}
+.section-stage .site-display { color: var(--site-text-on-dark); }
+
+/* Eyebrow / kicker label */
+.site-eyebrow {
+  font-family: var(--site-font-body);
+  font-size: var(--site-text-xs);
+  font-weight: var(--site-weight-semibold);
+  letter-spacing: var(--site-tracking-eyebrow);
+  text-transform: uppercase;
+  color: var(--site-text-muted);
+}
+.section-stage .site-eyebrow { color: var(--site-accent); }
