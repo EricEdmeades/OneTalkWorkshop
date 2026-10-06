@@ -15,3 +15,12 @@ describe('downloadState', () => {
   it('no token → expired', () => expect(downloadState('')).toEqual({ mode: 'expired' }));
   it('error flag keeps token for retry', () => expect(downloadState('?error=1&t=abc')).toEqual({ mode: 'error', t: 'abc' }));
 });
+
+describe('cleanDownloadUrl (security H1: keep the token out of analytics)', () => {
+  it('drops t but keeps the state flags', async () => {
+    const { cleanDownloadUrl } = await import('./messages.js');
+    expect(cleanDownloadUrl('/said-out-loud/download', '?t=abc.def')).toBe('/said-out-loud/download');
+    expect(cleanDownloadUrl('/said-out-loud/download', '?error=1&t=abc')).toBe('/said-out-loud/download?error=1');
+    expect(cleanDownloadUrl('/said-out-loud/download', '?expired=1')).toBe('/said-out-loud/download?expired=1');
+  });
+});

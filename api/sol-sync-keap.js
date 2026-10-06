@@ -10,8 +10,15 @@ import { missingConfig } from '../lib/sol-service.js';
 
 export const config = { maxDuration: 120 };
 
-let gapMs = 500;
-let deadlineMs = 75_000;
+// Keap's 240/min bucket is shared account-wide; each record costs ~4 calls, so a
+// run is kept small and slow: 8 records, 2s apart, ~16 calls a minute at most.
+export const BATCH_SIZE = 8;
+export const DEFAULT_GAP_MS = 2000;
+// 60s + one worst-case record (4 x 12s timeouts) stays under maxDuration 120s.
+export const DEFAULT_DEADLINE_MS = 60_000;
+
+let gapMs = DEFAULT_GAP_MS;
+let deadlineMs = DEFAULT_DEADLINE_MS;
 // Test seams — production never calls these.
 export const __setGapMs = (ms) => { gapMs = ms; };
 export const __setDeadlineMs = (ms) => { deadlineMs = ms; };
@@ -41,7 +48,9 @@ async function processOne(pathname, tagId) {
     await deletePending(pathname);
     return 'synced';
   } catch (err) {
-    if (err?.retryable) return 'throttled';
+    // Only a 429 stops the run uncounted. A timeout counts as an attempt so a
+    // record that always hangs ages out instead of blocking the queue forever.
+    if (err?.throttled) return 'throttled';
     return recordFailure(pathname, record, err);
   }
 }
@@ -49,7 +58,7 @@ async function processOne(pathname, tagId) {
 async function drain(tagId) {
   const started = Date.now();
   const counts = { synced: 0, failed: 0, dead: 0 };
-  for (const pathname of await listPending()) {
+  for (const pathname of await listPending(BATCH_SIZE)) {
     if (Date.now() - started > deadlineMs) return { counts, reason: 'deadline' };
     const outcome = await processOne(pathname, tagId);
     if (outcome === 'throttled') return { counts, reason: 'throttled' };

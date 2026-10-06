@@ -14,3 +14,12 @@ export function downloadState(search) {
   if (q.get('error') === '1') return { mode: 'error', t };
   return { mode: 'download', t };
 }
+
+// The token carries the reader's email, so it must leave the address bar before
+// GA4/Meta read location.href. State flags stay so a reload shows the same view.
+export function cleanDownloadUrl(pathname, search) {
+  const q = new URLSearchParams(search);
+  q.delete('t');
+  const rest = q.toString();
+  return rest ? `${pathname}?${rest}` : pathname;
+}

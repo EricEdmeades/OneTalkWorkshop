@@ -2,7 +2,7 @@
 // when the link is missing/expired. The button goes through /api/sol-download,
 // which verifies the token and redirects to a short-lived presigned PDF URL.
 import { initAnalytics } from '../analytics.js';
-import { downloadState, resendFeedback } from './messages.js';
+import { downloadState, resendFeedback, cleanDownloadUrl } from './messages.js';
 
 // Neutral on purpose: /api/sol-resend silently succeeds for unknown emails.
 const FRESH_SENT = 'If that address has the book, a fresh link is on its way.';
@@ -50,8 +50,9 @@ function wireFresh() {
 }
 
 document.addEventListener('DOMContentLoaded', () => {
-  initAnalytics();
   const state = downloadState(window.location.search);
+  window.history.replaceState(null, '', cleanDownloadUrl(window.location.pathname, window.location.search));
+  initAnalytics();
   show(state.mode);
   if (state.t) wireDownload(state.t);
   if (state.mode === 'expired') wireFresh();
