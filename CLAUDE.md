@@ -13,10 +13,10 @@ npm install
 npm run dev       # Vite dev server at http://localhost:5173
 npm run build      # outputs to ./dist
 npm run preview    # serves ./dist at http://localhost:4173 — smoke-test the prod bundle before pushing
-npm test           # vitest — currently covers lib/pricing.js only
+npm test           # vitest — lib/*.test.js (handler tests live in lib/, never api/) and src/sol/*.test.js
 ```
 
-There is no lint command configured in this project. `vitest` was introduced specifically for `lib/pricing.js` (the tier-cutoff/date math) — the `/api/*` serverless functions have no automated tests and are verified manually.
+There is no lint command configured in this project. Handler tests import the `api/*` modules from `lib/*.test.js`, because Vercel deploys every `.js` file under `api/` as an endpoint, test files included.
 
 To exercise the `/api/*` serverless functions locally (Keap/Stripe integration), use the Vercel CLI instead of plain `vite dev`:
 
@@ -28,10 +28,11 @@ To test analytics locally, copy `.env.example` to `.env.local` and set `VITE_GA_
 
 ## Architecture
 
-**Three HTML entrypoints**, all built by Vite (`vite.config.js` declares `main` → `index.html`, `stories` → `stories.html`, `register` → `register.html`):
+**HTML entrypoints**, all built by Vite (`vite.config.js` declares `main` → `index.html`, `stories` → `stories.html`, `register` → `register.html`, plus `survey` and the three `sol*` pages):
 - `index.html` — the main landing page. **Copy and structure — do not refactor markup wholesale**, it was ported verbatim from a design reference.
 - `register.html` — date + tier + plan selection. No name/email form here — Stripe Checkout's hosted page collects that itself.
 - `stories.html` — a static grid of all testimonials (no carousel, hover-reveal via CSS only).
+- `said-out-loud/{index,thanks,download}.html` — the Said Out Loud ebook funnel (see below).
 
 **`src/main.js`** is the entrypoint for `index.html` and wires up every feature module on `DOMContentLoaded`:
 - `word-hover.js` — wraps heading words in `<span class="word">` for per-word hover effects (skips `.day-title`, leaves existing inline elements like `.accent`/`<em>` alone).
@@ -64,6 +65,18 @@ A **tag-apply failure is treated as a hard failure** in both `api/subscribe-otw.
 The report is **aggregate-only by construction**: `loadSessions()` projects each session down to `{status, mode, amount_total, metadata.date, discounts}` at the Stripe boundary, so `customer`, `customer_details`, `customer_email`, `client_reference_id` and `payment_intent` never enter the pipeline. There is no downstream "hide the names" filter that a later change could quietly remove.
 
 **`lib/results.js`** holds the pure aggregation (`buildReport`, `formatMoney`, `formatPct`) and is unit-tested in `lib/results.test.js` — same split as `lib/pricing.js`/`lib/seats.js`, so the counting and money math are verifiable without a network. Two revenue columns: **Collected** is `amount_total` as Stripe took it; **Contracted** multiplies a `mode: "subscription"` registration by `SUBSCRIPTION_PERIOD_COUNT` (exported from `lib/pricing.js`) because `cancel_at` pins a plan to exactly 2 billings. Importing that constant rather than hardcoding `2` is what keeps the revenue math and the `cancel_at` math from drifting.
+
+### Said Out Loud ebook opt-in (`/said-out-loud`)
+
+A Speaker Nation lead magnet hosted here until speakernation.com is rebuilt. Spec: `docs/superpowers/specs/2026-10-06-said-out-loud-optin-design.md`.
+
+- **Pages** (`said-out-loud/*.html`, `src/sol/*`) use the Claude Design "Speaker Nation Design System" tokens copied into `src/sol/tokens/` (ink/amber, Anton/Manrope/Inter). They never load `src/styles.css`, and the existing pages never load `src/sol/*`.
+- **Delivery is Resend, not Keap.** `api/sol-optin.js` sends the email first (from/reply-to `support@speakernation.com`), then records the send in Blob, then writes Keap (contact + `KEAP_TAG_ID_SAID_OUT_LOUD` + a note with the "speak about" answer). A Resend failure is a 502 the visitor sees; a Keap failure is queued to `sol/pending/` and retried by `api/sol-sync-keap.js` (cron `5-59/10`, same fail-closed / paced / stop-on-throttle rules as `refresh-keap.js`). Records that fail 20 times move to `sol/dead/`.
+- **Email-only delivery.** The thank-you page never offers the file. The email carries a stateless HMAC token (`lib/sol-token.js`, 30 days); `api/sol-download.js` verifies it and 302s to a 5-minute **presigned** URL for the private PDF (`lib/sol-pdf.js`). Streaming is not possible: function responses cap at ~4.5 MB and the PDF is ~18.6 MB.
+- **Rate limit** (`lib/sol-ratelimit.js`): 1 send per 60s and 3 per 24h per email, the opt-in included. `sol-optin` answers a limited request with a silent success and skips Keap; `sol-resend` answers 429. `sol-resend` only mails addresses with an opt-in marker.
+- **Env vars:** `RESEND_API_KEY` (Speaker Nation Resend account), `SOL_LINK_SECRET` (32+ random bytes; signs download links), `KEAP_TAG_ID_SAID_OUT_LOUD` (`2105`, "Said Out Loud – ebook"), optional `SOL_PUBLIC_BASE_URL` (default: production → `https://onetalkworkshop.com`, preview → `https://$VERCEL_BRANCH_URL`). Also uses the existing `KEAP_API_KEY`, `CRON_SECRET` and Blob credentials. Endpoints log the missing names and fail closed when any is absent.
+- **Replacing the book:** `node --env-file=.env.local scripts/upload-sol-pdf.mjs <pdf>` overwrites the fixed pathname. The source PDF lives in `SaidOutLoud/` (git-ignored).
+- Keap helpers shared with `subscribe-otw.js` live in `lib/keap-contact.js`; anti-spam gates in `lib/spam-gates.js`.
 
 ### The Keap channel of /results is a stored snapshot, never a live read
 
