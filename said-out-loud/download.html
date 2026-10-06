@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Said Out Loud — your download</title>
+  <meta name="robots" content="noindex">
+  <meta name="referrer" content="no-referrer">
+  <link rel="icon" href="/assets/favicon-512.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Manrope:wght@500;600;700&family=Inter:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/src/sol/said-out-loud.css">
+</head>
+<body>
+  <main class="sol-wrap">
+    <section class="sol-panel">
+      <img src="/assets/speaker-nation-logo-black.png" alt="Speaker Nation" width="160" height="28">
+
+      <div data-state="download" hidden>
+        <h1 class="site-display">Said Out Loud is yours.</h1>
+        <a class="sol-btn" data-download href="#">Download the PDF</a>
+        <p>Keep the one-page cheat sheet at the back of the book near your desk.</p>
+      </div>
+
+      <div data-state="error" hidden>
+        <h1 class="site-display">Almost there.</h1>
+        <p>Something went wrong on our side. Try again in a minute.</p>
+        <a class="sol-btn" data-download href="#">Try the download again</a>
+      </div>
+
+      <div data-state="expired" hidden>
+        <h1 class="site-display">This link has expired.</h1>
+        <p>Enter your email and we'll send a fresh one.</p>
+        <form data-form="sol-fresh" novalidate>
+          <div class="sol-field">
+            <label for="sol-fresh-email">Email</label>
+            <input id="sol-fresh-email" name="email" type="email" autocomplete="email" required maxlength="254">
+          </div>
+          <button class="sol-btn" type="submit">Send a fresh link</button>
+          <p class="sol-status" role="status" aria-live="polite"></p>
+        </form>
+      </div>
+    </section>
+  </main>
+  <script type="module" src="/src/sol/download.js"></script>
+</body>
+</html>

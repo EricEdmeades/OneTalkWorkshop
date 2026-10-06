@@ -1,0 +1,36 @@
+:root {
+  /* Families */
+  --site-font-display: 'Anton', 'Arial Narrow', 'Helvetica Neue', sans-serif; /* hero titles only — a level above headings */
+  --site-font-heading: 'Manrope', 'Helvetica Neue', Arial, sans-serif;
+  --site-font-body: 'Inter', 'Helvetica Neue', Arial, sans-serif;
+  --site-font-mono: 'JetBrains Mono', 'SF Mono', Consolas, monospace;
+
+  /* Base + modular scale (1.25 — major third) */
+  --site-font-size-base: 16px;
+  --site-type-scale: 1.25;
+  --site-text-xs: 0.75rem;    /* 12px — eyebrow, caption */
+  --site-text-sm: 0.875rem;   /* 14px — labels, meta */
+  --site-text-base: 1rem;     /* 16px — body */
+  --site-text-md: 1.25rem;    /* 20px — lead paragraph */
+  --site-text-lg: 1.5625rem;  /* 25px — h4 */
+  --site-text-xl: 1.9531rem;  /* 31px — h3 */
+  --site-text-2xl: 2.4414rem; /* 39px — h2 */
+  --site-text-3xl: 3.0518rem; /* 49px — h1 */
+  --site-text-4xl: 3.8147rem; /* 61px — display */
+  --site-text-5xl: 4.7684rem; /* 76px — hero display */
+
+  /* Weights (max 600 per brand) */
+  --site-weight-regular: 400;
+  --site-weight-medium: 500;
+  --site-weight-semibold: 600;
+
+  /* Line heights */
+  --site-leading-display: 1.15;  /* hero headlines */
+  --site-leading-heading: 1.2;
+  --site-leading-body: 1.7;
+
+  /* Letter spacing — widened only on eyebrow labels */
+  --site-tracking-eyebrow: 0.07em;
+  --site-tracking-tight: -0.01em;
+  --site-tracking-display: 0.01em; /* Anton reads best with a hair of tracking, uppercase */
+}

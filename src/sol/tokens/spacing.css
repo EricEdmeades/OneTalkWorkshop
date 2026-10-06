@@ -1,0 +1,20 @@
+:root {
+  /* Spacing — 8px unit, roughly 1.5 rhythm: 8 / 12 / 16 / 24 / 36 / 54 / 80 */
+  --site-space-unit: 8px;
+  --site-space-1: 8px;
+  --site-space-2: 12px;
+  --site-space-3: 16px;
+  --site-space-4: 24px;
+  --site-space-5: 36px;
+  --site-space-6: 54px;
+  --site-space-7: 80px;
+  --site-space-8: 120px;  /* extra-large section rhythm on desktop */
+
+  /* Section padding (vertical) */
+  --site-section-pad: 80px;
+  --site-section-pad-mobile: 44px;
+
+  /* Content column */
+  --site-content-max: 1200px;
+  --site-prose-max: 68ch;
+}

@@ -1,0 +1,29 @@
+:root {
+  /* Base palette — Speaker Nation "Spotlight Logic" */
+  --site-primary: #141824;      /* deep indigo-ink — stage/hero sections only */
+  --site-secondary: #1C2128;    /* near-ink — text, outlines */
+  --site-tertiary: #5C6470;     /* muted slate — supporting copy, hairlines */
+  --site-background: #F8F5F0;    /* warm off-white — default canvas */
+  --site-surface: #FFFFFF;       /* white — cards */
+  --site-text: #1C2128;          /* body text on light */
+  --site-text-muted: #5C6470;    /* supporting copy only */
+  --site-accent: #E9A13B;        /* luminous amber — the single spotlight accent */
+  --site-error: #C24A3A;         /* feedback only */
+  --site-success: #2E7D5B;       /* feedback only */
+
+  /* Light-on-dark counterpart for text on stage sections */
+  --site-text-on-dark: #F4F1EA;
+  --site-muted-on-dark: #9AA0AC; /* supporting copy on dark */
+
+  /* Derived low-contrast neutrals (do not hand-edit; keep in sync with base) */
+  --site-hairline: rgba(92,100,112,0.16);   /* card/input borders on light */
+  --site-hairline-strong: rgba(28,33,40,0.12);
+  --site-hairline-on-dark: rgba(244,241,234,0.14);
+  --site-accent-soft: rgba(233,161,59,0.14); /* amber tint for focus halos, subtle fills */
+  --site-surface-sunken: #F1ECE4;            /* recessed surface on light */
+
+  /* Semantic aliases */
+  --site-fill-cta: var(--site-accent);
+  --site-fill-cta-text: var(--site-text);
+  --site-focus-ring: var(--site-accent);
+}

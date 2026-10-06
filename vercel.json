@@ -5,14 +5,45 @@
   "cleanUrls": true,
   "trailingSlash": false,
   "redirects": [
-    { "source": "/register", "destination": "/#waitlist", "permanent": false },
-    { "source": "/register.html", "destination": "/#waitlist", "permanent": false }
+    {
+      "source": "/register",
+      "destination": "/#waitlist",
+      "permanent": false
+    },
+    {
+      "source": "/register.html",
+      "destination": "/#waitlist",
+      "permanent": false
+    }
   ],
   "rewrites": [
-    { "source": "/results", "destination": "/api/results" },
-    { "source": "/results/:view", "destination": "/api/results?view=:view" }
+    {
+      "source": "/results",
+      "destination": "/api/results"
+    },
+    {
+      "source": "/results/:view",
+      "destination": "/api/results?view=:view"
+    },
+    {
+      "source": "/149e9513-01fa-4fb0-aad4-566afd725d1b/2d206a39-8ed7-437e-a3be-862e0f06eea3/a-4-a/c.js",
+      "destination": "https://api.vercel.com/bot-protection/v1/challenge"
+    },
+    {
+      "source": "/149e9513-01fa-4fb0-aad4-566afd725d1b/2d206a39-8ed7-437e-a3be-862e0f06eea3/:path*",
+      "destination": "https://api.vercel.com/bot-protection/v1/proxy/:path*"
+    }
   ],
-  "crons": [{ "path": "/api/refresh-keap", "schedule": "*/10 * * * *" }],
+  "crons": [
+    {
+      "path": "/api/refresh-keap",
+      "schedule": "*/10 * * * *"
+    },
+    {
+      "path": "/api/sol-sync-keap",
+      "schedule": "5-59/10 * * * *"
+    }
+  ],
   "headers": [
     {
       "source": "/assets/(.*)",
@@ -45,6 +76,15 @@
         {
           "key": "Permissions-Policy",
           "value": "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()"
+        }
+      ]
+    },
+    {
+      "source": "/149e9513-01fa-4fb0-aad4-566afd725d1b/2d206a39-8ed7-437e-a3be-862e0f06eea3/:path*",
+      "headers": [
+        {
+          "key": "X-Frame-Options",
+          "value": "SAMEORIGIN"
         }
       ]
     }

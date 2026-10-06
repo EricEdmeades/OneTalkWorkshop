@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Check your inbox — Said Out Loud</title>
+  <meta name="robots" content="noindex">
+  <link rel="icon" href="/assets/favicon-512.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Manrope:wght@500;600;700&family=Inter:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/src/sol/said-out-loud.css">
+</head>
+<body>
+  <main class="sol-wrap">
+    <section class="sol-panel" aria-labelledby="sol-thanks-title">
+      <img src="/assets/speaker-nation-logo-black.png" alt="Speaker Nation" width="160" height="28">
+      <h1 id="sol-thanks-title" class="site-display">Check your inbox.</h1>
+      <p><em>Said Out Loud</em> is on its way from <strong>support@speakernation.com</strong>. It usually arrives within a minute.</p>
+      <div class="sol-help">
+        <p><strong>Can't find it?</strong> Look in Spam or Promotions. If it landed there, drag it into your inbox and add support@speakernation.com to your contacts, so the next one arrives where you'll see it.</p>
+      </div>
+      <div data-resend>
+        <p>Still nothing after five minutes? <button class="sol-btn sol-btn--ghost" type="button">Send it again</button></p>
+        <p class="sol-status" role="status" aria-live="polite"></p>
+      </div>
+      <p data-no-resend hidden>Still nothing after five minutes? Write to <a href="mailto:support@speakernation.com">support@speakernation.com</a>.</p>
+    </section>
+  </main>
+  <script type="module" src="/src/sol/thanks.js"></script>
+</body>
+</html>
