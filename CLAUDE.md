@@ -76,7 +76,9 @@ A Speaker Nation lead magnet hosted here until speakernation.com is rebuilt. Spe
 - **Rate limit** (`lib/sol-ratelimit.js`): 1 send per 60s and 3 per 24h per email, the opt-in included. `sol-optin` answers a limited request with a silent success and skips Keap; `sol-resend` answers 429. `sol-resend` only mails addresses with an opt-in marker.
 - **Env vars:** `RESEND_API_KEY` (Speaker Nation Resend account), `SOL_LINK_SECRET` (32+ random bytes; signs download links), `KEAP_TAG_ID_SAID_OUT_LOUD` (`2105`, "Said Out Loud – ebook"), optional `SOL_PUBLIC_BASE_URL` (default: production → `https://onetalkworkshop.com`, preview → `https://$VERCEL_BRANCH_URL`). Also uses the existing `KEAP_API_KEY`, `CRON_SECRET` and Blob credentials. Endpoints log the missing names and fail closed when any is absent.
 - **Replacing the book:** `node --env-file=.env.local scripts/upload-sol-pdf.mjs <pdf>` overwrites the fixed pathname. The source PDF lives in `SaidOutLoud/` (git-ignored).
-- Keap helpers shared with `subscribe-otw.js` live in `lib/keap-contact.js`; anti-spam gates in `lib/spam-gates.js`.
+- Keap helpers shared with `subscribe-otw.js` live in `lib/keap-contact.js`; anti-spam gates in `lib/spam-gates.js`. The opt-in uses `findOrCreateContact`: an existing Keap contact is never renamed from the public form (anyone can type anyone's email).
+- **Bot protection:** Vercel BotID. `src/sol/botid.js` (`initBotId`, imported first by every page) protects POST `/api/sol-optin` and `/api/sol-resend`; `lib/sol-bot.js` runs `checkBotId({ advancedOptions: { headers: req.headers } })` and fails open; the challenge proxy is the `/149e9513-…` rewrites + header in `vercel.json` (from the BotID docs — do not remove).
+- **Privacy:** the download page strips `?t=` from the URL before GA4/Meta load (the token encodes the email). Blob path keys are an HMAC keyed by `SOL_LINK_SECRET` — rotating that secret orphans existing opt-in markers, rate history and pending paths, and invalidates every emailed link.
 
 ### The Keap channel of /results is a stored snapshot, never a live read
 
